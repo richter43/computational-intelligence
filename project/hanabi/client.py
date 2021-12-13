@@ -57,7 +57,7 @@ def manageInput():
                 s.send(GameData.ClientPlayerPlayCardRequest(
                     playerName, cardOrder).serialize())
             except:
-                print("Maybe you wanted to type 'play <num> <pile position>'?")
+                print("Maybe you wanted to type 'play <num>'?")
                 continue
         elif command.split(" ")[0] == "hint" and status == statuses[1]:
             try:
@@ -152,11 +152,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print("OH NO! The Gods are unhappy with you!")
         if type(data) is GameData.ServerHintData:
             dataOk = True
-            if data.destination == playerName:
-                print("Hint type: " + data.type)
-                print("Your cards with value " + str(data.value) + " are:")
-                for i in data.positions:
-                    print("\t" + str(i))
+            print("Hint type: " + data.type)
+            print("Player " + data.destination + " cards with value " + str(data.value) + " are:")
+            for i in data.positions:
+                print("\t" + str(i))
         if type(data) is GameData.ServerInvalidDataReceived:
             dataOk = True
             print(data.data)
