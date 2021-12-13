@@ -10,8 +10,8 @@ import os
 
 if len(argv) < 4:
     print("You need the player name to start the game.")
-    #exit(-1)
-    playerName = "Test" # For debug
+    # exit(-1)
+    playerName = "Test"  # For debug
     ip = HOST
     port = PORT
 else:
@@ -26,6 +26,7 @@ statuses = ["Lobby", "Game", "GameHint"]
 status = statuses[0]
 
 hintState = ("", "")
+
 
 def manageInput():
     global run
@@ -44,7 +45,8 @@ def manageInput():
             try:
                 cardStr = command.split(" ")
                 cardOrder = int(cardStr[1])
-                s.send(GameData.ClientPlayerDiscardCardRequest(playerName, cardOrder).serialize())
+                s.send(GameData.ClientPlayerDiscardCardRequest(
+                    playerName, cardOrder).serialize())
             except:
                 print("Maybe you wanted to type 'discard <num>'?")
                 continue
@@ -52,7 +54,8 @@ def manageInput():
             try:
                 cardStr = command.split(" ")
                 cardOrder = int(cardStr[1])
-                s.send(GameData.ClientPlayerPlayCardRequest(playerName, cardOrder).serialize())
+                s.send(GameData.ClientPlayerPlayCardRequest(
+                    playerName, cardOrder).serialize())
             except:
                 print("Maybe you wanted to type 'play <num> <pile position>'?")
                 continue
@@ -71,9 +74,11 @@ def manageInput():
                         continue
                 else:
                     if value not in ["green", "red", "blue", "yellow", "white"]:
-                        print("Error: card color can only be green, red, blue, yellow or white")
+                        print(
+                            "Error: card color can only be green, red, blue, yellow or white")
                         continue
-                s.send(GameData.ClientHintData(playerName, destination, t, value).serialize())
+                s.send(GameData.ClientHintData(
+                    playerName, destination, t, value).serialize())
             except:
                 print("Maybe you wanted to type 'hint <type> <destinatary> <value>'?")
                 continue
@@ -84,8 +89,10 @@ def manageInput():
             continue
         stdout.flush()
 
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     request = GameData.ClientPlayerAddData(playerName)
+
     s.connect((HOST, PORT))
     s.send(request.serialize())
     data = s.recv(DATASIZE)
@@ -102,7 +109,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         data = GameData.GameData.deserialize(data)
         if type(data) is GameData.ServerPlayerStartRequestAccepted:
             dataOk = True
-            print("Ready: " + str(data.acceptedStartRequests) + "/"  + str(data.connectedPlayers) + " players")
+            print("Ready: " + str(data.acceptedStartRequests) +
+                  "/" + str(data.connectedPlayers) + " players")
             data = s.recv(DATASIZE)
             data = GameData.GameData.deserialize(data)
         if type(data) is GameData.ServerStartGameData:
@@ -124,7 +132,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 print("]")
             print("Discard pile: ")
             for c in data.discardPile:
-                print("\t" + c.toString())            
+                print("\t" + c.toString())
             print("Note tokens used: " + str(data.usedNoteTokens) + "/8")
             print("Storm tokens used: " + str(data.usedStormTokens) + "/3")
         if type(data) is GameData.ServerActionInvalid:
@@ -160,6 +168,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             stdout.flush()
             run = False
         if not dataOk:
-            print("Unknown or unimplemented data type: " +  str(type(data)))
+            print("Unknown or unimplemented data type: " + str(type(data)))
         print("[" + playerName + " - " + status + "]: ", end="")
         stdout.flush()
