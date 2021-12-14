@@ -7,6 +7,7 @@ from constants import *
 import logging
 import sys
 
+mutex = threading.Lock()
 # SERVER
 playerConnections = {}
 game = Game()
@@ -31,7 +32,9 @@ def manageConnection(conn: socket, addr):
         playerName = ""
         while keepActive:
             data = conn.recv(DATASIZE)
-            mutex.acquire()
+
+            mutex.acquire(True)
+
             if not data:
                 del playerConnections[playerName]
                 logging.warning("Player disconnected: " + playerName)
@@ -83,8 +86,11 @@ def manageConnection(conn: socket, addr):
                         conn.send(singleData.serialize())
                     if multipleData is not None:
                         for id in playerConnections:
+
                             playerConnections[id][0].send(
                                 multipleData.serialize())
+                            if game.isGameOver():
+                                os._exit(0)
             mutex.release()
 
 

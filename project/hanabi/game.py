@@ -14,8 +14,11 @@ class Card(object):
     def toString(self):
         return ("Card " + str(self.id) + "; value: " + str(self.value) + "; color: " + str(self.color))
 
+    def toClientString(self):
+         return ("Card " + str(self.value) + " - " + str(self.color))
+
     def __hash__(self):
-        return self.id
+         return self.id
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):
@@ -48,6 +51,14 @@ class Player(object):
         c = "[ \n\t"
         for card in self.hand:
             c += "\t" + card.toString() + " \n\t"
+        c += " ]"
+        return ("Player " + self.name + " { \n\tcards: " + c + "; \n\tscore: " + str(self.score) + "\n}")
+
+
+   def toClientString(self):
+        c = "[ \n\t"
+        for card in self.hand:
+            c += "\t" + card.toClientString() + " \n\t"
         c += " ]"
         return ("Player " + self.name + " { \n\tcards: " + c + "; \n\tscore: " + str(self.score) + "\n}")
 
@@ -251,6 +262,9 @@ class Game(object):
             if p.name == data.destination:
                 destPlayer = p
                 break
+        if destPlayer is None:
+            return GameData.ServerInvalidDataReceived(data="The selected player does not exist"), None
+
         for i in range(len(destPlayer.hand)):
             if data.type == "color" or data.type == "colour":
                 if data.value == destPlayer.hand[i].color:
@@ -266,9 +280,16 @@ class Game(object):
                 self.__noteTokens -= 1
                 return GameData.ServerInvalidDataReceived(data="Sender cannot be destination!"), None
         self.__nextTurn()
-        logging.info("Player " + data.sender + " providing hint to " + data.destination +
+
+        if len(positions) == 0:
+            return GameData.ServerInvalidDataReceived(data="You cannot give hints about cards that the other person does not have"), None
+        logging.info("Player " + data.sender + " providing hint to " + data.destination + \
                      ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
+
         return None, GameData.ServerHintData(data.sender, data.destination, data.type, data.value, positions)
+
+    def isGameOver(self):
+        return self.__gameOver
 
     # Player functions
     # players list. Not the best, but there are literally max 5 players and the list should give us the order of connection = the order of the rounds
