@@ -23,6 +23,10 @@ names = set(["Richard", "Rasmus", "Tony", "Aubrey",
 barrier = None
 mutex = None
 localGame = None
+first = None
+
+barrierStartLoop = None
+barrierStopLoop = None
 
 
 def random_play(name):
@@ -33,22 +37,9 @@ def random_play(name):
     return request
 
 
-def player():
-
+def get_name():
     global names
-    global barrier
     global mutex
-    global localGame
-
-    mutex.acquire()
-
-    mutex.release()
-    # Keep a local copy of all the possible cards
-
-    card_set = set(localGame._Game__cardsToDraw)
-    seen_cards = list()
-    player_dict = dict()
-    # Situational optimization (Repeat a given context to see what is the best move)
 
     mutex.acquire()
     name = np.random.choice(list(names), 1)[0]
@@ -56,6 +47,21 @@ def player():
     name = str(name)
     names.remove(name)
     mutex.release()
+
+    return name
+
+
+def player(tid):
+    global barrier
+    global localGame
+    global mutex
+    global first
+
+    # Keep a local copy of all the possible cards
+    card_set = set(localGame._Game__cardsToDraw)
+    # Situational optimization (Repeat a given context to see what is the best move)
+
+    name = get_name()
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
@@ -72,15 +78,22 @@ def player():
         barrier.wait()
 
         sock.send(gd.ClientPlayerStartRequest(name).serialize())
+
         data = sock.recv(constants.DATASIZE)
         data = gd.GameData.deserialize(data)
-        barrier.reset()
+
+        if tid == 0:
+            barrier.reset()
 
         logging.debug(f"{name} start request")
 
         run = True
+        count = 0
 
         while run:
+
+            barrierStartLoop.wait()
+            barrierStartLoop.reset()
 
             data = sock.recv(constants.DATASIZE)
             data = gd.GameData.deserialize(data)
@@ -89,8 +102,8 @@ def player():
 
             if type(data) is gd.ServerStartGameData:
 
-                sock.send(gd.ClientPlayerReadyData(name).serialize())
-                logging.debug(f"Sent -> {name} : {gd.ClientPlayerReadyData}")
+                # sock.send(gd.ClientPlayerReadyData(name).serialize())
+                # logging.debug(f"Sent -> {name} : {gd.ClientPlayerReadyData}")
                 barrier.wait()
                 sock.send(gd.ClientGetGameStateRequest(name).serialize())
                 logging.debug(
@@ -106,16 +119,20 @@ def player():
 
             elif type(data) is gd.ServerGameStateData:
                 # pdb.set_trace()
-                # for p in data.players:
-                #     card_set -= set(p.hand)
-                #     print(card_set)
 
-                logging.debug(f"Current player: {data.currentPlayer}")
+                for p in data.players:
+                    card_set -= set(p.hand)
+
                 if data.currentPlayer == name:
+                    logging.debug(f"Current player: {data.currentPlayer}")
                     request = random_play(name)
                     sock.send(request)
+
             elif type(data) is gd.ServerGameOver:
                 run = False
+
+            barrierStopLoop.wait()
+            barrierStopLoop.reset()
 
         return 0
 
@@ -129,14 +146,19 @@ if __name__ == "__main__":
         sys.exit("Error, number of players must be given as an argument")
 
     am_players = int(sys.argv[1])
+    # Barriers used for simulating turns
     barrier = Barrier(am_players)
+    barrierStartLoop = Barrier(am_players)
+    barrierStopLoop = Barrier(am_players)
     mutex = Lock()
+    first = True
+
     localGame = game.Game()
 
     threads = list()
 
-    for _ in range(am_players):
-        t = Thread(target=player)
+    for i in range(am_players):
+        t = Thread(target=player, args=(i,))
         threads.append(t)
         t.start()
 
