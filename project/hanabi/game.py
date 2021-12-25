@@ -59,7 +59,7 @@ class Player(object):
         for card in self.hand:
             c += "\t" + card.toClientString() + " \n\t"
         c += " ]"
-        return ("Player " + self.name + " { \n\tcards: " + c + "; \n\tscore: " + str(self.score) + "\n}")
+        return ("Player " + self.name + " { \n\tcards: " + c + "\n}")
 
 
 class Game(object):
@@ -190,7 +190,7 @@ class Game(object):
         player = self.__getCurrentPlayer()
         # It's the right turn to perform an action
         if player.name == data.sender:
-            if data.handCardOrdered > len(player.hand) or data.handCardOrdered < 0:
+            if data.handCardOrdered >= len(player.hand) or data.handCardOrdered < 0:
                 return (GameData.ServerActionInvalid("You don't have that many cards!"), None)
             card: Card = player.hand[data.handCardOrdered]
             if not self.__discardCard(card.id, player.name):
@@ -254,7 +254,6 @@ class Game(object):
             logging.warning(
                 "All the note tokens have been used. Impossible getting hints")
             return GameData.ServerActionInvalid("All the note tokens have been used"), None
-        self.__noteTokens += 1
         positions = []
         destPlayer: Player = None
         for p in self.__players:
@@ -278,13 +277,11 @@ class Game(object):
             if data.sender == data.destination:
                 self.__noteTokens -= 1
                 return GameData.ServerInvalidDataReceived(data="Sender cannot be destination!"), None
-        self.__nextTurn()
-
         if len(positions) == 0:
             return GameData.ServerInvalidDataReceived(data="You cannot give hints about cards that the other person does not have"), None
-        logging.info("Player " + data.sender + " providing hint to " + data.destination + \
-                     ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
-
+        self.__nextTurn()
+        self.__noteTokens += 1
+        logging.info("Player " + data.sender + " providing hint to " + data.destination + ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
         return None, GameData.ServerHintData(data.sender, data.destination, data.type, data.value, positions)
 
     def isGameOver(self):
