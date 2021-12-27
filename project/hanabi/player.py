@@ -65,7 +65,7 @@ def player(tid: int) -> None:
         # Situational optimization (Repeat a given context to see what is the best move)
         name = get_name()
         num_cards = None
-        possible_cards = None
+        own_cards = None
         # player_knowledge = None Implements what other players currently know about their cards, see if it's worth
 
         # %% Adding player to the game
@@ -109,28 +109,43 @@ def player(tid: int) -> None:
             logging.debug(f"Received -> {name} : {data}")
 
             if type(data) is gd.ServerStartGameData:
-                num_cards, possible_cards = handlers.handle_startgame(
+                num_cards, own_cards = handlers.handle_startgame(
                     data, name, card_set, barrier, sock)
 
             elif type(data) is gd.ServerPlayerMoveOk or type(data) is gd.ServerPlayerThunderStrike:
                 sock.send(gd.ClientGetGameStateRequest(name).serialize())
 
-            # elif type(data) is gd.ServerActionValid:
-            #     # Might be useful in the future, keeping track of how does each player plays
+            elif type(data) is gd.ServerActionValid:
+                # Might be useful in the future, keeping track of how does each player plays
 
-            #     sock.send(gd.ClientGetGameStateRequest(name).serialize())
+                # if data.player == name: #Doesn't work, the name is that of the current player and not of the player who discarded the card
+                #     # Removing the card from the set of possibilities and the global card tracker
+
+                #     breakpoint()
+
+                #     logging.debug(f"{name} removed {data.card}")
+
+                #     card_set -= {data.card}
+                #     for pos_card in own_cards:
+                #         pos_card -= {data.card}
+
+                sock.send(gd.ClientGetGameStateRequest(name).serialize())
 
             elif type(data) is gd.ServerGameStateData:
-                handlers.handle_gamestate(data, card_set, name, sock)
+                handlers.handle_gamestate(
+                    data, card_set, name, own_cards, sock)
 
             elif type(data) is gd.ServerHintData:
-                handlers.handle_hint(data, possible_cards, name)
-
-            elif type(data) is gd.ServerGameOver:
-                run = False
+                handlers.handle_hint(data, own_cards, name)
+                sock.send(gd.ClientGetGameStateRequest(name).serialize())
+                logging.debug(
+                    f"Sent -> {name} : {gd.ClientGetGameStateRequest}")
 
             elif type(data) is gd.ServerInvalidDataReceived:
                 logging.debug(f"Contents: {data.data}")
+
+            elif type(data) is gd.ServerGameOver:
+                run = False
 
             barrier_turn_end.wait()
             barrier_turn_end.reset()

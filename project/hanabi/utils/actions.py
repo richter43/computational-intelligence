@@ -8,7 +8,8 @@ Created on Mon Dec 27 00:46:23 2021
 
 import numpy as np
 import logging
-from typing import List
+from typing import List, Set
+from copy import deepcopy
 
 import game
 import GameData as gd
@@ -60,4 +61,14 @@ def random_hint(name: str, players: List[game.Player]) -> SerializedGameData:
 
     request = gd.ClientHintData(name, player.name, sel_type, value).serialize()
 
+    return request
+
+
+def random_discard(name: str, own_cards: List[Set[game.Card]], possible_cards: Set[game.Card]) -> SerializedGameData:
+
+    num_cards = len(own_cards)
+    card_idx = np.random.choice(list(range(num_cards)), 1)[0]
+    logging.debug(f"{name} discarded {card_idx}")
+    own_cards[card_idx] = deepcopy(possible_cards)
+    request = gd.ClientPlayerDiscardCardRequest(name, card_idx).serialize()
     return request
