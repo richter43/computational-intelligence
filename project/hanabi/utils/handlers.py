@@ -12,36 +12,32 @@ from copy import deepcopy
 from typing import List, Set
 import logging
 
+import utils.players as players
 import utils.actions as actions
 import GameData as gd
 import game
 
 
-def handle_startgame(data: gd.ServerStartGameData, name: str, card_set: Set[game.Card], barrier: Barrier, sock: socket.socket) -> int:
+def handle_startgame_player(data: gd.ServerStartGameData, player: players.Player, barrier: Barrier, sock: socket.socket):
+
     # Number of cards being played, depends on the amount of players
-    if len(data.players) < 4:
-        num_cards = 5
-    else:
-        num_cards = 4
-    # Initializing possible cards
-    possible_cards = [card_set for _ in range(num_cards)]
+    player.init_hand(len(data.players))
+
     # %% Ready up / Initializes game
-    sock.send(gd.ClientPlayerReadyData(name).serialize())
-    logging.debug(f"Sent -> {name} : {gd.ClientPlayerReadyData}")
+    sock.send(gd.ClientPlayerReadyData(player.name).serialize())
+    logging.debug(f"Sent -> {player.name} : {gd.ClientPlayerReadyData}")
     barrier.wait()
 
-    sock.send(gd.ClientGetGameStateRequest(name).serialize())
+    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
     logging.debug(
-        f"Sent -> {name} : {gd.ClientGetGameStateRequest}")
-
-    return num_cards, possible_cards
+        f"Sent -> {player.name} : {gd.ClientGetGameStateRequest}")
 
 
-def handle_hint(data: gd.ServerHintData, possible_cards: List[Set[game.Card]], name: str):
+def handle_hint_player(data: gd.ServerHintData, player: players.Player):
 
     # TODO: Also modelling what the others know about their own cards
 
-    if data.destination == name:
+    if data.destination == player.name:
 
         if data.type == "value":
             def hint_compare(card: game.Card, data: gd.ServerHintData) -> bool:
@@ -51,39 +47,37 @@ def handle_hint(data: gd.ServerHintData, possible_cards: List[Set[game.Card]], n
                 return data.value == card.color
 
         logging.debug(
-            f"Player {name} knows {data.type}: {data.value} is at locations {data.positions}")
+            f"Player {player.name} knows {data.type}: {data.value} is at locations {data.positions}")
 
         logging.debug(
-            f"Possibilites before hint: {len(possible_cards[data.positions[0]])}")
+            f"Possibilites before hint: {len(player.hand_possible_cards[data.positions[0]])}")
 
         for idx in data.positions:
-            possible_cards[idx] = set(
-                [card for card in possible_cards[idx] if hint_compare(card, data)])
+            player.hand_possible_cards[idx] = set(
+                [card for card in player.hand_possible_cards[idx] if hint_compare(card, data)])
 
         logging.debug(
-            f"Possibilites after hint: {len(possible_cards[data.positions[0]])}")
+            f"Possibilites after hint: {len(player.hand_possible_cards[data.positions[0]])}")
 
 
-def handle_gamestate(data: gd.ServerGameStateData, card_set: Set[game.Card], name: str, own_cards: List[Set[game.Card]], sock: socket.socket):
+def handle_gamestate_player(data: gd.ServerGameStateData, player: players.Player, sock: socket.socket):
 
     logging.debug(
-        f"Card set size before taking into account player cards: {len(card_set)}")
+        f"Card set size before taking into account player cards: {len(player.total_possible_cards)}")
 
     # Remove the other players' cards from the possibility set
-    for player in data.players:
-        del_set = (set(player.hand) | set(data.discardPile))
-        card_set -= del_set
-        own_cards = [card_set - del_set for card_set in own_cards]
+    for other_player in data.players:
+        del_set = (set(other_player.hand) | set(data.discardPile))
+        player.total_possible_cards -= del_set
+        player.hand_possible_cards = [
+            player.total_possible_cards - del_set for card_set in player.hand_possible_cards]
 
     logging.debug(
-        f"Card set size after taking into account player cards: {len(card_set)}")
+        f"Card set size after taking into account player cards: {len(player.total_possible_cards)}")
 
-    if data.currentPlayer == name:
+    if data.currentPlayer == player.name:
 
         logging.debug(f"Current player: {data.currentPlayer}")
         # request = random_play(name, num_cards)
-        if data.usedNoteTokens > 1:
-            request = actions.random_discard(name, own_cards, card_set)
-        else:
-            request = actions.random_hint(name, data.players)
+        request = player.decide_action(data)
         sock.send(request)

@@ -16,6 +16,7 @@ import constants
 import GameData as gd
 import utils.localparse as parse
 import utils.handlers as handlers
+import utils.players as players
 
 # %% Global variables
 names = set(["Richard", "Rasmus", "Tony", "Aubrey",
@@ -49,7 +50,7 @@ def get_name() -> str:
     return name
 
 
-def player(tid: int) -> None:
+def player_thread(tid: int) -> None:
     """
     Player instantiated in a separate thread
     """
@@ -61,15 +62,13 @@ def player(tid: int) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
         # Keep a local copy of all the possible cards
-        card_set = set(localGame._Game__cardsToDraw)
         # Situational optimization (Repeat a given context to see what is the best move)
-        name = get_name()
-        num_cards = None
-        own_cards = None
+
+        player = players.RandomPlayer(get_name())
         # player_knowledge = None Implements what other players currently know about their cards, see if it's worth
 
         # %% Adding player to the game
-        request = gd.ClientPlayerAddData(name).serialize()
+        request = gd.ClientPlayerAddData(player.name).serialize()
         sock.connect((constants.HOST, constants.PORT))
         sock.send(request)
         # Checking connection, exit if not done
@@ -81,7 +80,7 @@ def player(tid: int) -> None:
 
         barrier.wait()
         # %% Starting game
-        sock.send(gd.ClientPlayerStartRequest(name).serialize())
+        sock.send(gd.ClientPlayerStartRequest(player.name).serialize())
 
         data = sock.recv(constants.DATASIZE)
         data = gd.GameData.deserialize(data)
@@ -89,10 +88,11 @@ def player(tid: int) -> None:
         if tid == 0:
             barrier.reset()
 
-        logging.debug(f"{name} start request")
+        logging.debug(f"{player.name} start request")
 
         run = True
-        count = 0
+
+        # breakpoint()
 
         while run:
 
@@ -106,14 +106,15 @@ def player(tid: int) -> None:
                 sock.close()
                 return
 
-            logging.debug(f"Received -> {name} : {data}")
+            logging.debug(f"Received -> {player.name} : {data}")
 
             if type(data) is gd.ServerStartGameData:
-                num_cards, own_cards = handlers.handle_startgame(
-                    data, name, card_set, barrier, sock)
+                # num_cards, own_cards = handlers.handle_startgame(
+                #     data, name, card_set, barrier, sock)
+                handlers.handle_startgame_player(data, player, barrier, sock)
 
             elif type(data) is gd.ServerPlayerMoveOk or type(data) is gd.ServerPlayerThunderStrike:
-                sock.send(gd.ClientGetGameStateRequest(name).serialize())
+                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
             elif type(data) is gd.ServerActionValid:
                 # Might be useful in the future, keeping track of how does each player plays
@@ -129,28 +130,35 @@ def player(tid: int) -> None:
                 #     for pos_card in own_cards:
                 #         pos_card -= {data.card}
 
-                sock.send(gd.ClientGetGameStateRequest(name).serialize())
+                sock.send(gd.ClientGetGameStateRequest(
+                    player.name).serialize())
 
             elif type(data) is gd.ServerGameStateData:
-                handlers.handle_gamestate(
-                    data, card_set, name, own_cards, sock)
+                # %% Code in which a decision is going to be taken
+                # handlers.handle_gamestate(
+                #     data, card_set, player.name, own_cards, sock)
+                handlers.handle_gamestate_player(data, player, sock)
 
             elif type(data) is gd.ServerHintData:
-                handlers.handle_hint(data, own_cards, name)
-                sock.send(gd.ClientGetGameStateRequest(name).serialize())
-                logging.debug(
-                    f"Sent -> {name} : {gd.ClientGetGameStateRequest}")
+                # %% Managing received hints
+                handlers.handle_hint_player(data, player)
+
+                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                logging.debug(f"Sent -> {player.name} : {gd.ClientGetGameStateRequest}")
 
             elif type(data) is gd.ServerInvalidDataReceived:
+                # %% Managing bad code
                 logging.debug(f"Contents: {data.data}")
 
             elif type(data) is gd.ServerGameOver:
+                # %% Managing the end of the game
                 run = False
 
             barrier_turn_end.wait()
             barrier_turn_end.reset()
 
 
+# %% Main
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG,
@@ -171,7 +179,7 @@ if __name__ == "__main__":
     threads = list()
 
     for i in range(am_players):
-        t = Thread(target=player, args=(i,))
+        t = Thread(target=player_thread, args=(i,))
         threads.append(t)
         t.start()
 
