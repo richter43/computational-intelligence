@@ -15,10 +15,10 @@ class Card(object):
         return ("Card " + str(self.id) + "; value: " + str(self.value) + "; color: " + str(self.color))
 
     def toClientString(self):
-         return ("Card " + str(self.value) + " - " + str(self.color))
+        return ("Card " + str(self.value) + " - " + str(self.color))
 
     def __hash__(self):
-         return self.id
+        return self.id
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):
@@ -53,8 +53,7 @@ class Player(object):
         c += " ]"
         return ("Player " + self.name + " { \n\tcards: " + c + "\n}")
 
-
-   def toClientString(self):
+    def toClientString(self):
         c = "[ \n\t"
         for card in self.hand:
             c += "\t" + card.toClientString() + " \n\t"
@@ -281,7 +280,8 @@ class Game(object):
             return GameData.ServerInvalidDataReceived(data="You cannot give hints about cards that the other person does not have"), None
         self.__nextTurn()
         self.__noteTokens += 1
-        logging.info("Player " + data.sender + " providing hint to " + data.destination + ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
+        logging.info("Player " + data.sender + " providing hint to " + data.destination +
+                     ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
         return None, GameData.ServerHintData(data.sender, data.destination, data.type, data.value, positions)
 
     def isGameOver(self):

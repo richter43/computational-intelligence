@@ -5,18 +5,19 @@ Created on Sat Dec 11 19:01:33 2021
 
 @author: foxtrot
 """
-from copy import deepcopy
-import logging
-import pdb
+from threading import Thread, Barrier, Lock
 import sys
-import GameData as gd
-import constants
 import socket
+import logging
 import numpy as np
-import time
-import game
-from threading import Thread, Barrier, Lock, currentThread
 
+import game
+import constants
+import GameData as gd
+import utils.localparse as parse
+import utils.handlers as handlers
+
+# %% Global variables
 names = set(["Richard", "Rasmus", "Tony", "Aubrey",
              "Don Juan", "Graham", "Dennis", "Jones"])
 
@@ -25,19 +26,16 @@ mutex = None
 localGame = None
 first = None
 
-barrierStartLoop = None
-barrierStopLoop = None
+barrier_turn_start = None
+barrier_turn_end = None
 
 
-def random_play(name):
-    plays = list(range(4))
-    play = int(np.random.choice(plays, 1)[0])
-    logging.debug(f"{name} played {play}")
-    request = gd.ClientPlayerPlayCardRequest(name, play).serialize()
-    return request
+def get_name() -> str:
+    """
+    Takes, removes and returns a name from the list.
+    This code is thread-safe.
+    """
 
-
-def get_name():
     global names
     global mutex
 
@@ -51,24 +49,30 @@ def get_name():
     return name
 
 
-def player(tid):
+def player(tid: int) -> None:
+    """
+    Player instantiated in a separate thread
+    """
     global barrier
     global localGame
     global mutex
     global first
 
-    # Keep a local copy of all the possible cards
-    card_set = set(localGame._Game__cardsToDraw)
-    # Situational optimization (Repeat a given context to see what is the best move)
-
-    name = get_name()
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
+        # Keep a local copy of all the possible cards
+        card_set = set(localGame._Game__cardsToDraw)
+        # Situational optimization (Repeat a given context to see what is the best move)
+        name = get_name()
+        num_cards = None
+        possible_cards = None
+        # player_knowledge = None Implements what other players currently know about their cards, see if it's worth
+
+        # %% Adding player to the game
         request = gd.ClientPlayerAddData(name).serialize()
         sock.connect((constants.HOST, constants.PORT))
         sock.send(request)
-
+        # Checking connection, exit if not done
         data = sock.recv(constants.DATASIZE)
         data = gd.GameData.deserialize(data)
 
@@ -76,7 +80,7 @@ def player(tid):
             sys.exit("Error, could not correctly connect to the server")
 
         barrier.wait()
-
+        # %% Starting game
         sock.send(gd.ClientPlayerStartRequest(name).serialize())
 
         data = sock.recv(constants.DATASIZE)
@@ -92,22 +96,21 @@ def player(tid):
 
         while run:
 
-            barrierStartLoop.wait()
-            barrierStartLoop.reset()
+            barrier_turn_start.wait()
+            barrier_turn_start.reset()
 
-            data = sock.recv(constants.DATASIZE)
-            data = gd.GameData.deserialize(data)
+            try:
+                data = sock.recv(constants.DATASIZE)
+                data = gd.GameData.deserialize(data)
+            except:
+                sock.close()
+                return
 
             logging.debug(f"Received -> {name} : {data}")
 
             if type(data) is gd.ServerStartGameData:
-
-                # sock.send(gd.ClientPlayerReadyData(name).serialize())
-                # logging.debug(f"Sent -> {name} : {gd.ClientPlayerReadyData}")
-                barrier.wait()
-                sock.send(gd.ClientGetGameStateRequest(name).serialize())
-                logging.debug(
-                    f"Sent -> {name} : {gd.ClientGetGameStateRequest}")
+                num_cards, possible_cards = handlers.handle_startgame(
+                    data, name, card_set, barrier, sock)
 
             elif type(data) is gd.ServerPlayerMoveOk or type(data) is gd.ServerPlayerThunderStrike:
                 sock.send(gd.ClientGetGameStateRequest(name).serialize())
@@ -118,23 +121,19 @@ def player(tid):
             #     sock.send(gd.ClientGetGameStateRequest(name).serialize())
 
             elif type(data) is gd.ServerGameStateData:
-                # pdb.set_trace()
+                handlers.handle_gamestate(data, card_set, name, sock)
 
-                for p in data.players:
-                    card_set -= set(p.hand)
-
-                if data.currentPlayer == name:
-                    logging.debug(f"Current player: {data.currentPlayer}")
-                    request = random_play(name)
-                    sock.send(request)
+            elif type(data) is gd.ServerHintData:
+                handlers.handle_hint(data, possible_cards, name)
 
             elif type(data) is gd.ServerGameOver:
                 run = False
 
-            barrierStopLoop.wait()
-            barrierStopLoop.reset()
+            elif type(data) is gd.ServerInvalidDataReceived:
+                logging.debug(f"Contents: {data.data}")
 
-        return 0
+            barrier_turn_end.wait()
+            barrier_turn_end.reset()
 
 
 if __name__ == "__main__":
@@ -142,14 +141,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format='%(relativeCreated)6d %(threadName)s %(message)s')
 
-    if len(sys.argv) != 2:
-        sys.exit("Error, number of players must be given as an argument")
+    args = parse.parse_arguments()
 
-    am_players = int(sys.argv[1])
+    am_players = args.num_players
     # Barriers used for simulating turns
     barrier = Barrier(am_players)
-    barrierStartLoop = Barrier(am_players)
-    barrierStopLoop = Barrier(am_players)
+    barrier_turn_start = Barrier(am_players)
+    barrier_turn_end = Barrier(am_players)
     mutex = Lock()
     first = True
 

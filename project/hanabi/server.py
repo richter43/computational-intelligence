@@ -24,6 +24,7 @@ status = statuses[0]
 
 commandQueue = {}
 
+
 def manageConnection(conn: socket, addr):
     global status
     global mutex
@@ -53,7 +54,7 @@ def manageConnection(conn: socket, addr):
                         conn.send(GameData.ServerPlayerConnectionOk(
                             playerName).serialize())
                     elif type(data) is GameData.ClientPlayerStartRequest:
-
+                        print(commandQueue)
                         if playerName not in game.getPlayers() and playerName != "" and playerName is not None:
 
                             game.setPlayerReady(playerName)
@@ -82,16 +83,19 @@ def manageConnection(conn: socket, addr):
                         status = "Game"
                         for player in commandQueue:
                             for cmd in commandQueue[player]:
-                                singleData, multipleData = game.satisfyRequest(cmd, player)
+                                singleData, multipleData = game.satisfyRequest(
+                                    cmd, player)
                                 if singleData is not None:
-                                    playerConnections[player][0].send(singleData.serialize())
+                                    playerConnections[player][0].send(
+                                        singleData.serialize())
                                 if multipleData is not None:
                                     for id in playerConnections:
-                                        playerConnections[id][0].send(multipleData.serialize())
+                                        playerConnections[id][0].send(
+                                            multipleData.serialize())
                                         if game.isGameOver():
                                             os._exit(0)
                         commandQueue.clear()
-                    else:
+                    elif type(data) is not GameData.ClientPlayerAddData and type(data) is not GameData.ClientPlayerStartRequest and type(data) is not GameData.ClientPlayerReadyData:
                         commandQueue[playerName].append(data)
                 # In game
                 elif status == "Game":
