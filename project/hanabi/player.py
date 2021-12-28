@@ -92,8 +92,6 @@ def player_thread(tid: int) -> None:
 
         run = True
 
-        # breakpoint()
-
         while run:
 
             barrier_turn_start.wait()
@@ -135,8 +133,6 @@ def player_thread(tid: int) -> None:
 
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
-                # handlers.handle_gamestate(
-                #     data, card_set, player.name, own_cards, sock)
                 handlers.handle_gamestate_player(data, player, sock)
 
             elif type(data) is gd.ServerHintData:
