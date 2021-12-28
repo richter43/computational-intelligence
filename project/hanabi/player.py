@@ -16,7 +16,7 @@ import constants
 import GameData as gd
 import utils.localparse as parse
 import utils.handlers as handlers
-import utils.players as players
+import players
 
 # %% Global variables
 names = set(["Richard", "Rasmus", "Tony", "Aubrey",

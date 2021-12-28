@@ -12,8 +12,7 @@ from copy import deepcopy
 from typing import List, Set
 import logging
 
-import utils.players as players
-import utils.actions as actions
+import players
 import GameData as gd
 import game
 
