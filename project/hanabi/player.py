@@ -11,7 +11,6 @@ import socket
 import logging
 import numpy as np
 
-import game
 import constants
 import GameData as gd
 import utils.localparse as parse
@@ -19,12 +18,10 @@ import utils.handlers as handlers
 import players
 
 # %% Global variables
-names = set(["Richard", "Rasmus", "Tony", "Aubrey",
-             "Don Juan", "Graham", "Dennis", "Jones"])
+names = set(["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"])
 
 barrier = None
 mutex = None
-localGame = None
 first = None
 
 barrier_turn_start = None
@@ -50,18 +47,29 @@ def get_name() -> str:
     return name
 
 
+def cut_and_return(data: bytes):
+
+    """
+    Splits the bytes information if there's more than one packet that was received
+    """
+    final_index = data.find(b"ub.") + 3
+
+    if len(data) != final_index:
+        return data[final_index:]
+
+    return None
+
+
 def player_thread(tid: int) -> None:
     """
     Player instantiated in a separate thread
     """
     global barrier
-    global localGame
     global mutex
     global first
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
-        # Keep a local copy of all the possible cards
         # Situational optimization (Repeat a given context to see what is the best move)
 
         player = players.RandomPlayer(get_name())
@@ -79,18 +87,19 @@ def player_thread(tid: int) -> None:
             sys.exit("Error, could not correctly connect to the server")
 
         barrier.wait()
-        # %% Starting game
-        sock.send(gd.ClientPlayerStartRequest(player.name).serialize())
-
-        data = sock.recv(constants.DATASIZE)
-        data = gd.GameData.deserialize(data)
 
         if tid == 0:
             barrier.reset()
 
-        logging.debug(f"{player.name} start request")
+        # %% Starting game
+
+        sock.send(gd.ClientPlayerStartRequest(player.name).serialize())
+        logging.debug(f"Sent -> {player.name} : {gd.ClientPlayerStartRequest}")
+
+        logging.info(f"{player.name} joined")
 
         run = True
+        queue = None
 
         while run:
 
@@ -98,20 +107,31 @@ def player_thread(tid: int) -> None:
             barrier_turn_start.reset()
 
             try:
-                data = sock.recv(constants.DATASIZE)
-                data = gd.GameData.deserialize(data)
+
+                if queue is None:
+                    data = sock.recv(constants.DATASIZE)
+                    queue = cut_and_return(data)
+                    data = gd.GameData.deserialize(data)
+
+                else:
+                    data = gd.GameData.deserialize(queue)
+                    queue = cut_and_return(queue)
             except:
                 sock.close()
                 return
 
-            logging.debug(f"Received -> {player.name} : {data}")
+            logging.debug(f"Received -> {player.name} : {type(data)}")
 
             if type(data) is gd.ServerStartGameData:
-                # num_cards, own_cards = handlers.handle_startgame(
-                #     data, name, card_set, barrier, sock)
                 handlers.handle_startgame_player(data, player, barrier, sock)
 
-            elif type(data) is gd.ServerPlayerMoveOk or type(data) is gd.ServerPlayerThunderStrike:
+            elif type(data) is gd.ServerPlayerMoveOk:
+                logging.info("Good move")
+                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+
+            elif type(data) is gd.ServerPlayerThunderStrike:
+                logging.info("Bad move")
+
                 sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
             elif type(data) is gd.ServerActionValid:
@@ -128,8 +148,7 @@ def player_thread(tid: int) -> None:
                 #     for pos_card in own_cards:
                 #         pos_card -= {data.card}
 
-                sock.send(gd.ClientGetGameStateRequest(
-                    player.name).serialize())
+                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
@@ -148,19 +167,21 @@ def player_thread(tid: int) -> None:
 
             elif type(data) is gd.ServerGameOver:
                 # %% Managing the end of the game
+                logging.info("Bad move")
                 run = False
 
             barrier_turn_end.wait()
             barrier_turn_end.reset()
 
+        logging.info("Game is over")
+
 
 # %% Main
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(relativeCreated)6d %(threadName)s %(message)s')
-
     args = parse.parse_arguments()
+
+    logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
 
     am_players = args.num_players
     # Barriers used for simulating turns
@@ -169,8 +190,6 @@ if __name__ == "__main__":
     barrier_turn_end = Barrier(am_players)
     mutex = Lock()
     first = True
-
-    localGame = game.Game()
 
     threads = list()
 

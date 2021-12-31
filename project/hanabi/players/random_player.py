@@ -25,6 +25,9 @@ class RandomPlayer(Player):
         super().__init__(name)
 
     def decide_action(self, data: gd.ServerGameStateData):
+        """
+        Decides which course of action is best given the state of the game
+        """
         val = np.random.rand()
         if val < 1/3:
             request = self.play()
@@ -40,7 +43,7 @@ class RandomPlayer(Player):
 
     def play(self) -> SerializedGameData:
         """
-        Return a random play
+        Returns a random play
 
         Returns
         -------
@@ -50,13 +53,13 @@ class RandomPlayer(Player):
         """
         plays = list(range(self.num_cards))
         play = int(np.random.choice(plays, 1)[0])
-        logging.debug(f"{self.name} played {play}")
+        logging.info(f"{self.name} played {play}")
         request = gd.ClientPlayerPlayCardRequest(self.name, play).serialize()
         return request
 
     def hint(self, players: List[game.Player]) -> SerializedGameData:
         """
-        Return a random hint
+        Returns a random hint
 
         players : List[game.Player]
             List of the other players (Contains cards and all).
@@ -81,11 +84,13 @@ class RandomPlayer(Player):
 
         request = gd.ClientHintData(self.name, player.name, sel_type, value).serialize()
 
+        logging.info(f"{self.name} hinted {sel_type}: value")
+
         return request
 
     def discard(self) -> SerializedGameData:
         """
-        Discard a random card
+        Discards a random card
 
         Returns
         -------
@@ -94,7 +99,7 @@ class RandomPlayer(Player):
 
         """
         card_idx = np.random.choice(list(range(self.num_cards)), 1)[0]
-        logging.debug(f"{self.name} discarded {card_idx}")
+        logging.info(f"{self.name} discarded {card_idx}")
         self.hand_possible_cards[card_idx] = deepcopy(self.total_possible_cards)
         request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
         return request

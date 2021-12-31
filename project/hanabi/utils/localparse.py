@@ -7,6 +7,7 @@ Created on Sat Dec 25 22:54:49 2021
 """
 
 import argparse
+import logging
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -15,7 +16,11 @@ def parse_arguments() -> argparse.Namespace:
 
     args.add_argument("--num_players", type=int, default=1,
                       help="Number of players")
+    args.add_argument("--log", type=str, default="info",
+                      choices=["info", "debug"])
 
     args = args.parse_args()
+
+    args.log = getattr(logging, args.log.upper())
 
     return args

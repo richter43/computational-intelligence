@@ -37,26 +37,7 @@ def handle_hint_player(data: gd.ServerHintData, player: players.Player):
     # TODO: Also modelling what the others know about their own cards
 
     if data.destination == player.name:
-
-        if data.type == "value":
-            def hint_compare(card: game.Card, data: gd.ServerHintData) -> bool:
-                return int(data.value) == card.value
-        else:
-            def hint_compare(card: game.Card, data: gd.ServerHintData) -> bool:
-                return data.value == card.color
-
-        logging.debug(
-            f"Player {player.name} knows {data.type}: {data.value} is at locations {data.positions}")
-
-        logging.debug(
-            f"Possibilites before hint: {len(player.hand_possible_cards[data.positions[0]])}")
-
-        for idx in data.positions:
-            player.hand_possible_cards[idx] = set(
-                [card for card in player.hand_possible_cards[idx] if hint_compare(card, data)])
-
-        logging.debug(
-            f"Possibilites after hint: {len(player.hand_possible_cards[data.positions[0]])}")
+        player.cull_posibilities(data)
 
 
 def handle_gamestate_player(data: gd.ServerGameStateData, player: players.Player, sock: socket.socket):

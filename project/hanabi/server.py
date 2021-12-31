@@ -135,6 +135,8 @@ def manageNetwork():
                              args=(conn, addr)).start()
 
 
+# np.random.seed(1)
+
 logging.basicConfig(filename="game.log", level=logging.INFO,
                     format='%(asctime)s %(levelname)s: %(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
