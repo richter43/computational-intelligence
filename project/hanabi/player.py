@@ -15,6 +15,7 @@ import constants
 import GameData as gd
 import utils.localparse as parse
 import utils.handlers as handlers
+import utils.utility as utility
 import players
 
 # %% Global variables
@@ -152,6 +153,12 @@ def player_thread(tid: int) -> None:
 
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
+
+                if tid == 0:
+                    breakpoint()
+
+                    a = utility.final_randomvar_score(data, player)
+
                 handlers.handle_gamestate_player(data, player, sock)
 
             elif type(data) is gd.ServerHintData:
