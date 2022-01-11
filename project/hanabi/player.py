@@ -156,7 +156,6 @@ def player_thread(tid: int) -> None:
 
                 if tid == 0:
                     breakpoint()
-
                     a = utility.final_randomvar_score(data, player)
 
                 handlers.handle_gamestate_player(data, player, sock)

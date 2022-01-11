@@ -9,6 +9,7 @@ Created on Mon Dec 27 18:46:46 2021
 import game
 import GameData as gd
 import logging
+from copy import deepcopy
 
 SerializedGameData = str
 
@@ -81,11 +82,20 @@ class Player(object):
     def decide_action(self, data: gd.ServerGameStateData) -> str:
         pass
 
-    def play(self):
-        pass
+    def play(self, play: int) -> SerializedGameData:
+        logging.info(f"{self.name} played {play}")
+        request = gd.ClientPlayerPlayCardRequest(self.name, play).serialize()
+        return request
 
-    def hint(self):
-        pass
+    def hint(self, hinted_player_name: str, hint_type: str, hint_value: str) -> SerializedGameData:
+        
+        request = gd.ClientHintData(self.name, hinted_player_name, hint_type, hint_value).serialize()
+        logging.info(f"{self.name} hinted {hint_type}: {hint_value}")
 
-    def discard(self):
-        pass
+        return request
+    
+    def discard(self, card_idx: int) -> SerializedGameData:
+        self.hand_possible_cards[card_idx] = deepcopy(self.total_possible_cards)
+        logging.info(f"{self.name} discarded {card_idx}")
+        request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
+        return request

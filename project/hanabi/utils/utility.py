@@ -35,7 +35,7 @@ def utility(card: game.Card, data: gd.ServerGameStateData, player: Player):
 
     if playable(card, data.tableCards):
         # Playability is more important than rarity
-        return 2
+        return 1.1
 
     other_player_cards = set([card for data_player in data.players for card in data_player.hand])
     return rarity(card, player.total_possible_cards | other_player_cards)
