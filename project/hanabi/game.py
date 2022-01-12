@@ -157,7 +157,7 @@ class Game(object):
         self.__stormTokens = 0
         ###
 
-        # Init players
+        # Init agents
         self.__players = []
         self.__currentPlayer = 0
 
@@ -174,7 +174,7 @@ class Game(object):
 
     # Request satisfaction methods
     # Each method produces a tuple of ServerToClientData derivates
-    # where the first element is the one to send to a single player, while the second one has to be sent to all players
+    # where the first element is the one to send to a single player, while the second one has to be sent to all agents
 
     def satisfyRequest(self, data: GameData.ClientToServerData, playerName: str):
         if type(data) in self.__dataActions:
@@ -288,7 +288,7 @@ class Game(object):
         return self.__gameOver
 
     # Player functions
-    # players list. Not the best, but there are literally max 5 players and the list should give us the order of connection = the order of the rounds
+    # agents list. Not the best, but there are literally max 5 agents and the list should give us the order of connection = the order of the rounds
     def addPlayer(self, name: str):
         self.__players.append(Player(name))
 
@@ -318,7 +318,7 @@ class Game(object):
     def start(self):
         shuffle(self.__cardsToDraw)
         if len(self.__players) < 2:
-            logging.warning("Not enough players!")
+            logging.warning("Not enough agents!")
             return
         logging.info("Ok, let's start the game!")
         if len(self.__players) < 4:

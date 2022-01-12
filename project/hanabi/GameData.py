@@ -56,7 +56,7 @@ class ClientPlayerStartRequest(ClientToServerData):
 class ClientPlayerReadyData(ClientToServerData):
     '''
     The response to the server: the player is ready.
-    The server needs to know that all players have received 
+    The server needs to know that all agents have received
     the confirmation message to exit the lobby and enter the game.
     '''
     def __init__(self, sender) -> None:
@@ -130,7 +130,7 @@ class ServerPlayerConnectionOk(ServerToClientData):
 class ServerPlayerStartRequestAccepted(ServerToClientData):
     '''
     The server acknowledges you are ready.
-    connectedPlayers: the number of connected players.
+    connectedPlayers: the number of connected agents.
     acceptedStartRequeste: the number of accepted start requests.
     '''
     def __init__(self, connectedPlayers, acceptedStartRequest) -> None:
@@ -143,7 +143,7 @@ class ServerStartGameData(ServerToClientData):
     '''
     You are not in the lobby anymore. 
     Remember to tell the server that you received this message.
-    players: the list of players in turn order.
+    agents: the list of agents in turn order.
     '''
     def __init__(self, players) -> None:
         action = "Game start"
@@ -152,9 +152,9 @@ class ServerStartGameData(ServerToClientData):
 
 class ServerGameStateData(ServerToClientData):
     '''
-    Shows the game state to the players.
+    Shows the game state to the agents.
     currentPlayer: the name of the player that should play right now.
-    players: the list of players in turn order.
+    agents: the list of agents in turn order.
     usedNoteTokens: used blue (note) tokens. 0 is the minimum, 8 is the maximum.
     usedStormTokens: used red (storm) tokens. 0 is the minimum, 3 is the maximum. At 3 the game is over.
     tableCards: shows the cards that are currently being played (forming the current firework).

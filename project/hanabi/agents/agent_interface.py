@@ -14,7 +14,7 @@ from copy import deepcopy
 SerializedGameData = str
 
 
-class Player(object):
+class Agent(object):
     def __init__(self, name: str):
         self.name = name
         self.local_game = game.Game()
@@ -32,7 +32,7 @@ class Player(object):
         Parameters
         ----------
         num_players : int
-            Number of players in the game.
+            Number of agents in the game.
 
         Returns
         -------

@@ -10,7 +10,7 @@ from typing import List, Dict, Set, Tuple
 import numpy as np
 from operator import itemgetter
 
-from players import Player
+from agents import Agent
 import game
 import GameData as gd
 
@@ -31,7 +31,7 @@ def rarity(card: game.Card, playable_cards: Set[game.Card]) -> float:
     return 1 / values_present
 
 
-def utility(card: game.Card, data: gd.ServerGameStateData, player: Player):
+def utility(card: game.Card, data: gd.ServerGameStateData, player: Agent):
 
     if playable(card, data.tableCards):
         # Playability is more important than rarity
@@ -41,7 +41,7 @@ def utility(card: game.Card, data: gd.ServerGameStateData, player: Player):
     return rarity(card, player.total_possible_cards | other_player_cards)
 
 
-def hint_bestplayerpos(data: gd.ServerGameStateData, player: Player) -> Tuple[str, int]:
+def hint_bestplayerpos(data: gd.ServerGameStateData, player: Agent) -> Tuple[str, int]:
 
     dict_player_cards = {}
     max_num = -1
@@ -60,14 +60,14 @@ def hint_bestplayerpos(data: gd.ServerGameStateData, player: Player) -> Tuple[st
 
 
 def randomvar_score(
-    cloud_cards: Set[game.Card], data: gd.ClientGetGameStateRequest, player: Player, result_list: List[float], tid: int
+    cloud_cards: Set[game.Card], data: gd.ClientGetGameStateRequest, player: Agent, result_list: List[float], tid: int
 ):
 
     tmp_score = [utility(card, data, player) for card in cloud_cards]
     result_list[tid] = np.average(tmp_score)
 
 
-def final_randomvar_score(data: gd.ServerGameStateData, player: Player) -> float:
+def final_randomvar_score(data: gd.ServerGameStateData, player: Agent) -> float:
 
     # TODO WRONG!!!!! Use threads for splitting the work of each cloud_cards
 

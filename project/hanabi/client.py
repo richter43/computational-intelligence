@@ -110,7 +110,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if type(data) is GameData.ServerPlayerStartRequestAccepted:
             dataOk = True
             print("Ready: " + str(data.acceptedStartRequests) +
-                  "/" + str(data.connectedPlayers) + " players")
+                  "/" + str(data.connectedPlayers) + " agents")
             data = s.recv(DATASIZE)
             data = GameData.GameData.deserialize(data)
         if type(data) is GameData.ServerStartGameData:

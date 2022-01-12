@@ -15,7 +15,7 @@ def parse_arguments() -> argparse.Namespace:
     args = argparse.ArgumentParser()
 
     args.add_argument("--num_players", type=int, default=1,
-                      help="Number of players")
+                      help="Number of agents")
     args.add_argument("--log", type=str, default="info",
                       choices=["info", "debug"])
 

@@ -14,12 +14,12 @@ from copy import deepcopy
 
 import game
 import GameData as gd
-from .player_interface import Player
+from .agent_interface import Agent
 
 SerializedGameData = str
 
 
-class RandomPlayer(Player):
+class DeterministicAgent(Agent):
 
     def __init__(self, name: str):
         super().__init__(name)
@@ -30,18 +30,18 @@ class RandomPlayer(Player):
         """
         val = np.random.rand()
         if val < 1/3:
-            request = self.random_play()
+            request = self.play()
         elif val > 2/3:
             if data.usedNoteTokens > 1:
-                request = self.random_discard()
+                request = self.discard()
             else:
                 return self.decide_action(data)
         else:
-            request = self.random_hint(data.players)
+            request = self.hint(data.players)
 
         return request
 
-    def random_play(self) -> SerializedGameData:
+    def play(self) -> SerializedGameData:
         """
         Returns a random play
 
@@ -52,15 +52,17 @@ class RandomPlayer(Player):
 
         """
         plays = list(range(self.num_cards))
-        card_pos = int(np.random.choice(plays, 1)[0])
-        return super().play(card_pos)
+        play = int(np.random.choice(plays, 1)[0])
+        logging.info(f"{self.name} played {play}")
+        request = gd.ClientPlayerPlayCardRequest(self.name, play).serialize()
+        return request
 
-    def random_hint(self, players: List[game.Player]) -> SerializedGameData:
+    def hint(self, players: List[game.Player]) -> SerializedGameData:
         """
         Returns a random hint
 
-        players : List[game.Player]
-            List of the other players (Contains cards and all).
+        agents : List[game.Player]
+            List of the other agents (Contains cards and all).
 
         Returns
         -------
@@ -80,9 +82,13 @@ class RandomPlayer(Player):
         else:
             value = card.color
 
-        return super().hint(player.name, sel_type, value)
+        request = gd.ClientHintData(self.name, player.name, sel_type, value).serialize()
 
-    def random_discard(self) -> SerializedGameData:
+        logging.info(f"{self.name} hinted {sel_type}: value")
+
+        return request
+
+    def discard(self) -> SerializedGameData:
         """
         Discards a random card
 
@@ -93,5 +99,7 @@ class RandomPlayer(Player):
 
         """
         card_idx = np.random.choice(list(range(self.num_cards)), 1)[0]
-        
-        return super().discard(card_idx)
+        logging.info(f"{self.name} discarded {card_idx}")
+        self.hand_possible_cards[card_idx] = deepcopy(self.total_possible_cards)
+        request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
+        return request

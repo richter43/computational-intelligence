@@ -16,7 +16,7 @@ import GameData as gd
 import utils.localparse as parse
 import utils.handlers as handlers
 import utils.utility as utility
-import players
+import agents
 
 # %% Global variables
 names = set(["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"])
@@ -73,8 +73,8 @@ def player_thread(tid: int) -> None:
 
         # Situational optimization (Repeat a given context to see what is the best move)
 
-        player = players.RandomPlayer(get_name())
-        # player_knowledge = None Implements what other players currently know about their cards, see if it's worth
+        player = agents.RandomAgent(get_name())
+        # player_knowledge = None Implements what other agents currently know about their cards, see if it's worth
 
         # %% Adding player to the game
         request = gd.ClientPlayerAddData(player.name).serialize()
