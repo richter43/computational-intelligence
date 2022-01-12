@@ -7,8 +7,12 @@ Created on Tue Jan 11 17:58:31 2022
 """
 
 from time import time
-from players import Action
+import numpy as np
 
+from copy import deepcopy
+
+from agents import Action
+import utils.handlers as handlers
 from .tree import Node
 
 class MCTS(object):
@@ -28,10 +32,41 @@ class MCTS(object):
         
         return
     
-    def select():
-        pass
+    def select(self, node: Node, C=1):
+        """
+            Regular Monte Carlo selection algorithm
+
+            Parameters
+            ----------
+            node : Tree Node
+                Node that contains information about the state.
+            C : Integer, optional
+                Scaling factor for the UCB equation. The default is 1.
+
+            Returns
+            -------
+            Tree Node
+                Best node according to UCB.
+
+            """
+
+        if node.leaf:
+            return node
+
+        visit_array = np.array([b.visits == 0 and not b.terminal for b in node.branches])
+
+        if any(visit_array):
+            idx = np.argmax(visit_array)
+            return node.branches[idx]
+
+        score_array = np.array(
+            [self.ucb(b.score, node.visits, b.visits, C) if not b.terminal else -1 for b in node.branches])
+
+        idx = np.argmax(score_array)
+
+        return self.select(node.branches[idx])
     
-    def expand(self, node: Node):
+    def expand(self, node: Node) -> Node:
         """
         Expansion step of the Monte Carlo Tree Search
 
@@ -47,26 +82,28 @@ class MCTS(object):
 
         """
 
-        table = node.game_state.tableCards
+        game_state = deepcopy(node.local_game_state)
         node.leaf = False
 
-        val_moves = node.player.get_moves()
+        val_moves = handlers.get_legal_moves(game_state)
 
         if len(val_moves) == 0:
             return None
 
         tmpList = []
 
-        for action, card_idx in val_moves:
-            
-            table_copy = table.copy()
-            
+        for action, content in val_moves:
+
+            current_player = game_state._game__getCurrentPlayer()
+
             if action == Action.play:
-                
+                game_state._Game__playCard(current_player.name,content)
             elif action == Action.hint:
-                
+                game_state._Game__(current_player.name, content)
             elif action == Action.discard:
-                
+                game_state._Game__discardCard()
+
+            gane_state._Game__nextTurn()
             
             c4.play(board_copy, move, -node.player)
             tmpNode = tree.Node(board_copy, -node.player, node)
@@ -91,8 +128,7 @@ class MCTS(object):
         pass
     
     def run(self):
-        
-        
+
         start_time = time.time()
 
         while time.time() - start_time < self.max_time:
@@ -109,3 +145,6 @@ class MCTS(object):
         score_array = [
             b.score/b.visits if not b.terminal else MAX_SCORE for b in root.branches]
         return np.argmax(score_array)
+
+    def ucb(score, par_n, n, C):
+        return score / n + C * np.sqrt(2 * np.log(par_n) / n)

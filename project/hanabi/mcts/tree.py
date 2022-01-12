@@ -7,14 +7,15 @@ Created on Thu Nov 11 12:18:04 2021
 """
 
 import GameData as gd
-import players
+import agents
+import game
+
 
 class Node(object):
-    def __init__(self, game_state: gd.ServerGameStateData, player: players.Player, parent=None):
+    def __init__(self, local_game_state: game.Game, parent=None):
         
         self.parent = parent # Parent node
-        self.player = player # Player object whose turn is current
-        self.game_state = game_state # State of the game
+        self.local_game_state = local_game_state # Player object whose turn is current
         self.score = 0 #Assigned score so far to this node
         self.visits = 0 #Amount of times this node has been visited
         self.branches = [] #Child  branches
@@ -22,7 +23,7 @@ class Node(object):
         self.terminal = False #Whether or not this is a terminal node or not
 
     def add_branch(self, state):
-        node = Node(state, -self.player, parent=self)
+        node = Node(state, parent=self)
         self.branches.append(node)
         self.leaf = False
         return node

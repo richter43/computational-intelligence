@@ -11,7 +11,7 @@ import GameData as gd
 import logging
 from copy import deepcopy
 from enum import Enum, auto
-from typing import Tuple
+from typing import Tuple, List
 
 SerializedGameData = str
 
@@ -20,21 +20,31 @@ class Action(Enum):
     hint = auto()
     discard = auto()
 
-
 class Agent(object):
-    def __init__(self, name: str):
+    def __init__(self, name: str, determinized=False, cards=None):
         self.name = name
         self.local_game = game.Game()
         # Keep a local copy of all the possible cards
         self.total_possible_cards = set(self.local_game._Game__cardsToDraw)
         # Initialized at init_hand()
         self.num_cards = None
-        self.hand_possible_cards = None
+        self.hand_possible_cards = cards
+        # self.determinized = determinized
 
-    def initialiaze(self, num_players:int):
-        self.init_hand(num_players)
+    def initialize(self, list_player: List[str]):
 
-    def init_hand(self, num_players: int):
+        self.num_players = len(list_player)
+
+        if self.num_players < 4:
+            self.num_cards = 5
+        else:
+            self.num_cards = 4
+
+        self.init_local_game(list_player)
+        self.init_hand()
+
+        
+    def init_hand(self):
         """
 
         Initialize the list of all possible cards
@@ -50,15 +60,29 @@ class Agent(object):
             All of the variables are created in the class
 
         """
-        if num_players < 4:
-            self.num_cards = 5
-        else:
-            self.num_cards = 4
         # Initializing possible cards
-        self.hand_possible_cards = [self.total_possible_cards for _ in range(self.num_cards)]
+        self.hand_possible_cards = [deepcopy(self.total_possible_cards) for _ in range(self.num_cards)]
+
+
+    def init_local_game(self, list_player: List[str]):
+        
+        self.local_game._Game__cardsToDraw = [None for i in range(len(self.total_possible_cards) - self.num_players * self.num_cards)] # Set possible cards to None since they are unknown
+        logging.debug(f"local_game cards to draw is set to {self.local_game._Game__cardsToDraw[0]} for {len(self.local_game._Game__cardsToDraw)} cards.")
+        
+        #Adding players to the locally instantiated game
+        for player_name in list_player:
+            self.local_game.addPlayer(player_name)
+            
+
+    def cull_other_player_info(self, player_list: List[game.Player], discard_pile: List[game.Card]):
+        
+        for other_player in player_list:
+            del_set = set(other_player.hand) | set(discard_pile)
+            self.total_possible_cards -= del_set
+            self.hand_possible_cards = [self.total_possible_cards - del_set for card_set in self.hand_possible_cards]
         
 
-    def cull_posibilities(self, data: gd.ServerGameStateData):
+    def cull_posibilities(self, data: gd.ServerHintData):
         if data.type == "value":
 
             def hint_compare(card: game.Card, data: gd.ServerHintData) -> bool:
@@ -109,11 +133,40 @@ class Agent(object):
         request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
         return request
     
-    def get_moves(self) -> Tuple[Action, int]:
-          
-        moves = [(i, j) for i in Action for j in range(self.num_cards)]
-        
-        return moves
+    # def get_moves(self):
+    #
+    #     moves = [(i, j) for i in [Action.play, Action.discard] for j in range(self.num_cards)]
+    #
+    #     for local_player in self.local_game._Game__player:
+    #         if local_player.name != self.name:
+    #             for card_idx in range(len(local_player.hand)):
+    #                 moves.append((Action.hint, card_idx))
+    #
+    #     return moves
     
     def decide_action(self, data: gd.ServerGameStateData) -> str:
         pass
+
+    def update_local_game(self, data: gd.ServerGameStateData):
+
+        """
+        Updates local game's state
+        """
+
+        self.local_game._Game__tableCards = deepcopy(data.tableCards)
+        self.local_game._Game__usedNoteTokens = deepcopy(data.usedNoteTokens)
+        self.local_game._Game__usedStormTokens = deepcopy(data.usedStormTokens)
+        self.local_game._Game__discardPile = deepcopy(data.discardPile)
+
+        for index, local_player in enumerate(self.local_game._Game__players):
+
+            if local_player.name == data.currentPlayer:
+                self.local_game._Game__currentPlayer = index
+                local_player.hand = self.hand_possible_cards
+                continue
+
+            for server_player in data.players:
+                if local_player.name == server_player.name:
+                    # Update the non-agent player's hand with their actual hand
+                    local_player.hand = deepcopy(server_player.hand)
+                    break

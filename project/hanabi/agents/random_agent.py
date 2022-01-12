@@ -9,10 +9,9 @@ Created on Tue Dec 28 15:22:39 2021
 from typing import List
 import numpy as np
 
-
 import game
 import GameData as gd
-from .agent_interface import Agent
+from .agent_interface import Agent, Action
 
 SerializedGameData = str
 
@@ -26,10 +25,11 @@ class RandomAgent(Agent):
         """
         Decides which course of action is best given the state of the game
         """
-        val = np.random.rand()
-        if val < 1/3:
+
+        action = np.random.choice(Action, 1)[0]
+        if action == Action.play:
             request = self.random_play()
-        elif val > 2/3:
+        elif action == Action.discard:
             if data.usedNoteTokens > 1:
                 request = self.random_discard()
             else:

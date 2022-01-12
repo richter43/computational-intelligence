@@ -125,9 +125,6 @@ def player_thread(tid: int) -> None:
 
             if type(data) is gd.ServerStartGameData:
                 
-                if(tid == 0):
-                    breakpoint()
-                
                 handlers.handle_startgame_player(data, player, barrier, sock)
 
             elif type(data) is gd.ServerPlayerMoveOk:
@@ -158,14 +155,17 @@ def player_thread(tid: int) -> None:
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
 
-                # if tid == 0:
-                #     breakpoint()
-                #     a = utility.final_randomvar_score(data, player)
+                if (tid == 0):
+                    breakpoint()
 
                 handlers.handle_gamestate_player(data, player, sock)
 
             elif type(data) is gd.ServerHintData:
                 # %% Managing received hints
+
+                if tid == 0:
+                    breakpoint()
+
                 handlers.handle_hint_player(data, player)
 
                 sock.send(gd.ClientGetGameStateRequest(player.name).serialize())

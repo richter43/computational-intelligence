@@ -11,6 +11,7 @@ import logging
 
 import agents
 import GameData as gd
+import game
 
 
 def handle_startgame_player(
@@ -18,7 +19,7 @@ def handle_startgame_player(
 ):
 
     # Number of cards being played, depends on the amount of players
-    player.init_hand(len(data.players))
+    player.initialize(data.players)
 
     # %% Ready up / Initializes game
     sock.send(gd.ClientPlayerReadyData(player.name).serialize())
@@ -37,21 +38,40 @@ def handle_hint_player(data: gd.ServerHintData, player: agents.Agent):
         player.cull_posibilities(data)
 
 
-def handle_gamestate_player(data: gd.ServerGameStateData, player: agents.Agent, sock: socket.socket):
+def handle_gamestate_player(data: gd.ServerGameStateData, agent: agents.Agent, sock: socket.socket):
 
-    logging.debug(f"Card set size before taking into account player cards: {len(player.total_possible_cards)}")
+    logging.debug(f"Card set size before taking into account player cards: {len(agent.total_possible_cards)}")
 
-    # Remove the other players' cards from the possibility set
-    for other_player in data.players:
-        del_set = set(other_player.hand) | set(data.discardPile)
-        player.total_possible_cards -= del_set
-        player.hand_possible_cards = [player.total_possible_cards - del_set for card_set in player.hand_possible_cards]
+    agent.cull_other_player_info(data.players, data.discardPile)
 
-    logging.debug(f"Card set size after taking into account player cards: {len(player.total_possible_cards)}")
+    get_legal_moves(agent.local_game)
 
-    if data.currentPlayer == player.name:
+    logging.debug(f"Card set size after taking into account player cards: {len(agent.total_possible_cards)}")
+
+    if data.currentPlayer == agent.name:
+
+        agent.update_local_game(data)
 
         logging.debug(f"Current player: {data.currentPlayer}")
         # request = random_play(name, num_cards)
-        request = player.decide_action(data)
+        request = agent.decide_action(data)
         sock.send(request)
+
+def get_legal_moves(game_state: game.Game):
+
+    player_idx = game_state._Game__currentPlayer
+    cur_player = game_state._Game__players[player_idx]
+
+    moves = [(i, j) for i in [agents.Action.play, agents.Action.discard] for j in range(len(cur_player.hand))]
+
+    for index, local_player in enumerate(game_state._Game__players):
+        if index != player_idx:
+            for card_idx in range(len(local_player.hand)):
+                moves.append((agents.Action.hint, (local_player.name, card_idx)))
+
+    return moves
+
+
+
+
+
