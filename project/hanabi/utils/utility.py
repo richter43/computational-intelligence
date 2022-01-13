@@ -95,3 +95,59 @@ def final_randomvar_score(data: gd.ServerGameStateData, player: Agent) -> float:
         t.join()
 
     return result_list
+
+def playable_percentage(cloud_cards: Set[game.Card], table_state: Dict[Suit, List[int]]) -> float:
+
+    #TODO dividing by zeor, check
+
+    can_play = 0
+
+    for card in cloud_cards:
+        if playable(card, table_state):
+            can_play+=1
+
+    return can_play/len(cloud_cards)
+
+def player_playable_card(player_list: List[game.Player], table_state: Dict[Suit, List[int]]) -> Tuple[str, str, object]:
+
+    pos_hint = ["value", "color"]
+    pos_cards = []
+
+    for server_player in player_list:
+        for card in server_player.hand:
+            if playable(card, table_state):
+                pos_cards.append((server_player.name, card))
+
+    if len(pos_cards) == 0:
+        return None
+    card_idx = np.random.choice(len(pos_cards), 1)[0]
+    hint_type = np.random.choice(pos_hint, 1)[0]
+
+    if hint_type == "value":
+        hint = pos_cards[card_idx][1].value
+    else:
+        hint = pos_cards[card_idx][1].color
+
+    return (pos_cards[card_idx][0], hint_type, hint)
+
+def least_info_card(list_cloud_cards: List[Set[game.Card]]) -> int:
+
+    size_pos = np.array([len(cloud_card) for cloud_card in list_cloud_cards])
+
+    posssible_idxs = np.array(range(len(list_cloud_cards)))[size_pos == np.max(size_pos)]
+
+    return np.random.choice(posssible_idxs,1)[0]
+
+def random_hint(players: List[game.Player]):
+    types = ["value", "color"]
+
+    player = np.random.choice(players, 1)[0]
+    card = np.random.choice(player.hand, 1)[0]
+    sel_type = np.random.choice(types, 1)[0]
+
+    if sel_type == "value":
+        value = card.value
+    else:
+        value = card.color
+
+    return (player.name, sel_type, value)

@@ -73,7 +73,7 @@ def player_thread(tid: int) -> None:
 
         # Situational optimization (Repeat a given context to see what is the best move)
 
-        player = agents.RandomAgent(get_name())
+        player = agents.DeterministicAgent(get_name())
         # player_knowledge = None Implements what other agents currently know about their cards, see if it's worth
 
         # %% Adding player to the game
@@ -110,6 +110,7 @@ def player_thread(tid: int) -> None:
             try:
 
                 if queue is None:
+                    #TODO: Order received packets
                     data = sock.recv(constants.DATASIZE)
                     queue = cut_and_return(data)
                     data = gd.GameData.deserialize(data)
@@ -154,14 +155,17 @@ def player_thread(tid: int) -> None:
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
 
-                if tid == 0:
-                    breakpoint()
-                    a = utility.final_randomvar_score(data, player)
+                # if tid == 0:
+                #     breakpoint()
 
                 handlers.handle_gamestate_player(data, player, sock)
 
             elif type(data) is gd.ServerHintData:
                 # %% Managing received hints
+
+                # if tid == 0:
+                #     breakpoint()
+
                 handlers.handle_hint_player(data, player)
 
                 sock.send(gd.ClientGetGameStateRequest(player.name).serialize())

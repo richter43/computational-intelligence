@@ -10,6 +10,7 @@ from typing import List
 import logging
 import numpy as np
 from copy import deepcopy
+import utils.utility as utility
 
 
 import game
@@ -29,6 +30,7 @@ class RandomAgent(Agent):
         Decides which course of action is best given the state of the game
         """
         val = np.random.rand()
+
         if val < 1/3:
             request = self.random_play()
         elif val > 2/3:
@@ -40,20 +42,6 @@ class RandomAgent(Agent):
             request = self.random_hint(data.players)
 
         return request
-
-    def random_play(self) -> SerializedGameData:
-        """
-        Returns a random play
-
-        Returns
-        -------
-        SerializedGameData
-            Serialized request.
-
-        """
-        plays = list(range(self.num_cards))
-        card_pos = int(np.random.choice(plays, 1)[0])
-        return super().play(card_pos)
 
     def random_hint(self, players: List[game.Player]) -> SerializedGameData:
         """

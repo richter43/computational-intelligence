@@ -6,13 +6,20 @@ Created on Mon Dec 27 18:46:46 2021
 @author: foxtrot
 """
 
+from enum import Enum, auto
+import logging
+
 import game
 import GameData as gd
-import logging
+
 from copy import deepcopy
 
 SerializedGameData = str
 
+class Action(Enum):
+    play = auto()
+    hint = auto()
+    discard = auto()
 
 class Agent(object):
     def __init__(self, name: str):
@@ -85,6 +92,7 @@ class Agent(object):
     def play(self, play: int) -> SerializedGameData:
         logging.info(f"{self.name} played {play}")
         request = gd.ClientPlayerPlayCardRequest(self.name, play).serialize()
+        self.hand_possible_cards[play] = deepcopy(self.total_possible_cards)
         return request
 
     def hint(self, hinted_player_name: str, hint_type: str, hint_value: str) -> SerializedGameData:

@@ -45,7 +45,7 @@ def handle_gamestate_player(data: gd.ServerGameStateData, player: agents.Agent, 
     for other_player in data.players:
         del_set = set(other_player.hand) | set(data.discardPile)
         player.total_possible_cards -= del_set
-        player.hand_possible_cards = [player.total_possible_cards - del_set for card_set in player.hand_possible_cards]
+        player.hand_possible_cards = [card_set - del_set for card_set in player.hand_possible_cards]
 
     logging.debug(f"Card set size after taking into account player cards: {len(player.total_possible_cards)}")
 

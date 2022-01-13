@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from .agent_interface import Agent
+from .agent_interface import Agent, Action
 from .random_agent import RandomAgent
+from .deterministic_agent import DeterministicAgent
 
-a = [RandomAgent]
-
+a = [RandomAgent, DeterministicAgent]
 
 def get_random_player():
 
