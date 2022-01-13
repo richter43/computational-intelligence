@@ -8,11 +8,15 @@ Created on Mon Dec 27 18:46:46 2021
 
 from enum import Enum, auto
 import logging
+from typing import List, Tuple, Dict
+from copy import deepcopy
+from utils import utility
+import numpy as np
 
 import game
 import GameData as gd
 
-from copy import deepcopy
+
 
 SerializedGameData = str
 
@@ -30,8 +34,9 @@ class Agent(object):
         # Initialized at init_hand()
         self.num_cards = None
         self.hand_possible_cards = None
+        self.list_given_hint = {} #Dictionary of List of the given hints
 
-    def init_hand(self, num_players: int):
+    def init_hand(self, server_players: List[game.Player]):
         """
 
         Initialize the list of all possible cards
@@ -47,11 +52,17 @@ class Agent(object):
             All of the variables are created in the class
 
         """
+        num_players = len(server_players)
+
         if num_players < 4:
             self.num_cards = 5
         else:
             self.num_cards = 4
         # Initializing possible cards
+
+        for player in server_players:
+            self.list_given_hint[player] = [ [] for _ in range(self.num_cards)]
+
         self.hand_possible_cards = [self.total_possible_cards for _ in range(self.num_cards)]
 
     def cull_posibilities(self, data: gd.ServerGameStateData):
@@ -95,8 +106,11 @@ class Agent(object):
         self.hand_possible_cards[play] = deepcopy(self.total_possible_cards)
         return request
 
-    def hint(self, hinted_player_name: str, hint_type: str, hint_value: str) -> SerializedGameData:
-        
+    def hint(self, hinted_player_name: str, hint_type: str, hint_value: str, player_list: List[game.Player] = None) -> SerializedGameData:
+
+        if player_list is not None:
+            self.append_given_hint((hinted_player_name, hint_type, hint_value), player_list)
+
         request = gd.ClientHintData(self.name, hinted_player_name, hint_type, hint_value).serialize()
         logging.info(f"{self.name} hinted {hint_type}: {hint_value}")
 
@@ -107,3 +121,50 @@ class Agent(object):
         logging.info(f"{self.name} discarded {card_idx}")
         request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
         return request
+
+    def append_given_hint(self, hint: Tuple[str, str, object], server_player_list: List[game.Player]):
+
+        hinted_player, hint_type, hint_value = hint
+
+        if hint_type == "value":
+            def compare_value(card: game.Card, value: int):
+                return card.value == value
+        else:
+            def compare_value(card: game.Card, value: str):
+                return card.color == value
+
+        for player in server_player_list:
+            if player.name == hinted_player:
+                for idx, card in enumerate(player.hand):
+                    if compare_value(card, hint_value):
+                        self.list_given_hint[hinted_player][idx].append((hint_type, hint_value))
+            break
+
+    def player_playable_card(self, player_list: List[game.Player], table_state: Dict[str, List[int]]) -> Tuple[
+        str, str, object]:
+
+        pos_hint = ["value", "color"]
+        pos_cards = []
+
+        for server_player in player_list:
+            for card_idx, card  in enumerate(server_player.hand):
+                if utility.playable(card, table_state):
+                    if not self.hinted_color(card, card_idx, server_player.name):
+                        pos_cards.append((server_player.name, "color", card.color))
+                    if not self.hinted_value(card, card_idx, server_player.name):
+                        pos_cards.append((server_player.name, "value", card.value))
+
+        if len(pos_cards) == 0:
+            return None
+
+        card_idx = np.random.choice(len(pos_cards), 1)[0]
+
+        return pos_cards[card_idx]
+
+    def hinted_color(self, card: game.Card, card_idx: int, player_name: str) -> bool:
+
+        return ("color", card.color) in self.list_given_hint[player_name][card_idx]
+
+    def hinted_value(self, card: game.Card, card_idx: int, player_name: str) -> bool:
+
+        return ("value", card.value) in self.list_given_hint[player_name][card_idx]

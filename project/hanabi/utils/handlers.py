@@ -9,16 +9,16 @@ import socket
 from threading import Barrier
 import logging
 
-import agents
+from agents import Agent
 import GameData as gd
 
 
 def handle_startgame_player(
-    data: gd.ServerStartGameData, player: agents.Agent, barrier: Barrier, sock: socket.socket
+    data: gd.ServerStartGameData, player: Agent, barrier: Barrier, sock: socket.socket
 ):
 
     # Number of cards being played, depends on the amount of agents
-    player.init_hand(len(data.players))
+    player.init_hand(data.players)
 
     # %% Ready up / Initializes game
     sock.send(gd.ClientPlayerReadyData(player.name).serialize())
@@ -29,7 +29,7 @@ def handle_startgame_player(
     logging.debug(f"Sent -> {player.name} : {gd.ClientGetGameStateRequest}")
 
 
-def handle_hint_player(data: gd.ServerHintData, player: agents.Agent):
+def handle_hint_player(data: gd.ServerHintData, player: Agent):
 
     # TODO: Also modelling what the others know about their own cards
 
@@ -37,7 +37,7 @@ def handle_hint_player(data: gd.ServerHintData, player: agents.Agent):
         player.cull_posibilities(data)
 
 
-def handle_gamestate_player(data: gd.ServerGameStateData, player: agents.Agent, sock: socket.socket):
+def handle_gamestate_player(data: gd.ServerGameStateData, player: Agent, sock: socket.socket):
 
     logging.debug(f"Card set size before taking into account player cards: {len(player.total_possible_cards)}")
 

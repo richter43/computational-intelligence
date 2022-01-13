@@ -155,8 +155,8 @@ def player_thread(tid: int) -> None:
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
 
-                # if tid == 0:
-                #     breakpoint()
+                if tid == 0:
+                    breakpoint()
 
                 handlers.handle_gamestate_player(data, player, sock)
 
