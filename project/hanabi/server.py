@@ -2,6 +2,7 @@ import os
 import GameData
 import socket
 from game import Game
+from game import Player
 import threading
 from constants import *
 import logging
@@ -23,16 +24,18 @@ statuses = [
 status = statuses[0]
 
 commandQueue = {}
+numPlayers = 2
 
 
 def manageConnection(conn: socket, addr):
     global status
-    global mutex
+    global game
     with conn:
         logging.info("Connected by: " + str(addr))
         keepActive = True
         playerName = ""
         while keepActive:
+            print("SERVER WAITING")
             data = conn.recv(DATASIZE)
 
             mutex.acquire(True)
@@ -41,9 +44,14 @@ def manageConnection(conn: socket, addr):
                 del playerConnections[playerName]
                 logging.warning("Player disconnected: " + playerName)
                 game.removePlayer(playerName)
+                if len(playerConnections) == 0:
+                    logging.info("Shutting down server")
+                    os._exit(0)
                 keepActive = False
             else:
+                print(f"SERVER PROCESSING {GameData.GameData.deserialize(data)}")
                 data = GameData.GameData.deserialize(data)
+                print(f"SERVER RECEIVED {type(data)} from {data.sender}")
                 if status == "Lobby":
                     if type(data) is GameData.ClientPlayerAddData:
                         playerName = data.sender
@@ -59,12 +67,11 @@ def manageConnection(conn: socket, addr):
 
                             game.setPlayerReady(playerName)
                             logging.info("Player ready: " + playerName)
-                            conn.send(GameData.ServerPlayerStartRequestAccepted(
-                                len(game.getPlayers()), game.getNumReadyPlayers()).serialize())
+                            conn.send(GameData.ServerPlayerStartRequestAccepted(len(game.getPlayers()),
+                                                                                game.getNumReadyPlayers()).serialize())
                         else:
                             return
-
-                        if len(game.getPlayers()) == game.getNumReadyPlayers() and len(game.getPlayers()) > 1:
+                        if len(game.getPlayers()) == game.getNumReadyPlayers() and len(game.getPlayers()) >= numPlayers:
                             listNames = []
                             for player in game.getPlayers():
                                 listNames.append(player.name)
@@ -95,7 +102,9 @@ def manageConnection(conn: socket, addr):
                                         if game.isGameOver():
                                             os._exit(0)
                         commandQueue.clear()
-                    elif type(data) is not GameData.ClientPlayerAddData and type(data) is not GameData.ClientPlayerStartRequest and type(data) is not GameData.ClientPlayerReadyData:
+                    elif type(data) is not GameData.ClientPlayerAddData and type(
+                            data) is not GameData.ClientPlayerStartRequest and type(
+                            data) is not GameData.ClientPlayerReadyData:
                         commandQueue[playerName].append(data)
                 # In game
                 elif status == "Game":
@@ -105,11 +114,19 @@ def manageConnection(conn: socket, addr):
                         conn.send(singleData.serialize())
                     if multipleData is not None:
                         for id in playerConnections:
-
                             playerConnections[id][0].send(
                                 multipleData.serialize())
                             if game.isGameOver():
-                                os._exit(0)
+                                logging.info("Game over")
+                                logging.info("Game score: " +
+                                             str(game.getScore()))
+                                # os._exit(0)
+                                players = game.getPlayers()
+                                game = Game()
+                                for player in players:
+                                    logging.info("Starting new game")
+                                    game.addPlayer(player.name)
+                                game.start()
             mutex.release()
 
 
@@ -119,10 +136,6 @@ def manageInput():
         if data == "exit":
             logging.info("Closing the server...")
             os._exit(0)
-
-
-print("Type 'exit' to end the program")
-
 
 def manageNetwork():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -134,11 +147,20 @@ def manageNetwork():
             threading.Thread(target=manageConnection,
                              args=(conn, addr)).start()
 
+def start_server(nplayers):
+    global numPlayers
+    numPlayers = nplayers
+    logging.basicConfig(filename="game.log", level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
+                        datefmt="%m/%d/%Y %I:%M:%S %p")
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    threading.Thread(target=manageNetwork).start()
+    manageInput()
 
-# np.random.seed(1)
 
-logging.basicConfig(filename="game.log", level=logging.INFO,
-                    format='%(asctime)s %(levelname)s: %(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
-logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-threading.Thread(target=manageNetwork).start()
-manageInput()
+if __name__ == '__main__':
+    print("Type 'exit' to end the program")
+    if len(sys.argv) > 1:
+        if int(sys.argv[1]) > 1:
+            numPlayers = int(sys.argv[1])
+
+    start_server(numPlayers)
