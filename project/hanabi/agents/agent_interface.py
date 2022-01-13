@@ -89,8 +89,8 @@ class Agent(object):
                     [card for card in self.hand_possible_cards[idx] if hint_compare(card, data)]
                 )
 
-                # if(len(tmp) == 0):
-                #     breakpoint()
+                if(len(tmp) == 0):
+                    breakpoint()
 
                 self.hand_possible_cards[idx] = tmp
             else:
@@ -98,8 +98,8 @@ class Agent(object):
                     [card for card in self.hand_possible_cards[idx] if not hint_compare(card, data)]
                 )
 
-                # if (len(tmp) == 0):
-                #     breakpoint()
+                if (len(tmp) == 0):
+                    breakpoint()
 
                 self.hand_possible_cards[idx] = tmp
 

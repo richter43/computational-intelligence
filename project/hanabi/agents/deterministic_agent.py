@@ -6,16 +6,11 @@ Created on Tue Dec 28 15:22:39 2021
 @author: foxtrot
 """
 
-from typing import List
-import logging
 import numpy as np
-from copy import deepcopy
-from utils import utility
 
-import game
 import GameData as gd
+from utils import utility
 from .agent_interface import Agent
-from .random_agent import RandomAgent
 
 SerializedGameData = str
 

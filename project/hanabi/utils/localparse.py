@@ -18,6 +18,8 @@ def parse_arguments() -> argparse.Namespace:
                       help="Number of agents")
     args.add_argument("--log", type=str, default="info",
                       choices=["info", "debug"])
+    args.add_argument("--iterations", type=int, default=1)
+    args.add_argument("--training", action='store_true')
 
     args = args.parse_args()
 

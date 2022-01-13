@@ -5,11 +5,17 @@ Created on Sat Dec 11 19:01:33 2021
 
 @author: foxtrot
 """
+import time
 from threading import Thread, Barrier, Lock
+from typing import List
 import sys
 import socket
 import logging
 import numpy as np
+import csv
+import os
+
+import subprocess
 
 import constants
 import GameData as gd
@@ -27,7 +33,6 @@ first = None
 
 barrier_turn_start = None
 barrier_turn_end = None
-
 
 def get_name() -> str:
     """
@@ -61,7 +66,7 @@ def get_name() -> str:
 #     return None
 
 
-def player_thread(tid: int) -> None:
+def player_thread(tid: int, ret: List[int]) -> None:
     """
     Player instantiated in a separate thread
     """
@@ -90,6 +95,7 @@ def player_thread(tid: int) -> None:
         barrier.wait()
 
         if tid == 0:
+            # breakpoint()
             barrier.reset()
 
         # %% Starting game
@@ -101,6 +107,7 @@ def player_thread(tid: int) -> None:
 
         run = True
         queue = None
+        prev_turn = None
 
         while run:
 
@@ -121,9 +128,9 @@ def player_thread(tid: int) -> None:
                 #     queue = cut_and_return(queue)
                 data = sock.recv(constants.DATASIZE)
                 data = gd.GameData.deserialize(data)
+
             except:
-                sock.close()
-                return
+                run = False
 
             logging.debug(f"Received -> {player.name} : {type(data)}")
 
@@ -142,16 +149,14 @@ def player_thread(tid: int) -> None:
             elif type(data) is gd.ServerActionValid:
                 # Might be useful in the future, keeping track of how does each player plays
 
-                # if data.player == name: #Doesn't work, the name is that of the current player and not of the player who discarded the card
-                #     # Removing the card from the set of possibilities and the global card tracker
+                if data.action == "discard":
+                    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
-                #     breakpoint()
+            elif type(data) is gd.ServerActionInvalid:
 
-                #     logging.debug(f"{name} removed {data.card}")
+                logging.info(f"Player: {player.name} has done wrong.")
 
-                #     card_set -= {data.card}
-                #     for pos_card in own_cards:
-                #         pos_card -= {data.card}
+                # breakpoint()
 
                 sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
@@ -160,6 +165,11 @@ def player_thread(tid: int) -> None:
 
                 # if tid == 0:
                 #     breakpoint()
+
+                if prev_turn == data.currentPlayer:
+                    continue
+
+                prev_turn = data.currentPlayer
 
                 handlers.handle_gamestate_player(data, player, sock)
 
@@ -180,7 +190,12 @@ def player_thread(tid: int) -> None:
 
             elif type(data) is gd.ServerGameOver:
                 # %% Managing the end of the game
-                logging.info("Bad move")
+
+                # breakpoint()
+
+                if(tid == 0):
+                    # breakpoint()
+                    ret[0] = data.score
                 run = False
 
             barrier_turn_end.wait()
@@ -206,10 +221,15 @@ if __name__ == "__main__":
 
     threads = list()
 
+    ret = [0]
     for i in range(am_players):
-        t = Thread(target=player_thread, args=(i,))
+        t = Thread(target=player_thread, args=(i,ret))
         threads.append(t)
         t.start()
 
     for t in threads:
         t.join()
+
+    if args.training:
+        with open(f"{am_players}-deterministic.csv",'a') as f:
+            f.write(f"{ret[0]},")
