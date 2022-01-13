@@ -61,7 +61,7 @@ class Agent(object):
         # Initializing possible cards
 
         for player in server_players:
-            self.list_given_hint[player] = [ [] for _ in range(self.num_cards)]
+            self.list_given_hint[player] = [ set() for _ in range(self.num_cards)]
 
         self.hand_possible_cards = [self.total_possible_cards for _ in range(self.num_cards)]
 
@@ -85,13 +85,23 @@ class Agent(object):
         for idx in range(self.num_cards):
             casted_positions = [int(i) for i in data.positions]
             if idx in casted_positions:
-                self.hand_possible_cards[idx] = set(
+                tmp = set(
                     [card for card in self.hand_possible_cards[idx] if hint_compare(card, data)]
                 )
+
+                # if(len(tmp) == 0):
+                #     breakpoint()
+
+                self.hand_possible_cards[idx] = tmp
             else:
-                self.hand_possible_cards[idx] = set(
+                tmp = set(
                     [card for card in self.hand_possible_cards[idx] if not hint_compare(card, data)]
                 )
+
+                # if (len(tmp) == 0):
+                #     breakpoint()
+
+                self.hand_possible_cards[idx] = tmp
 
         logging.info(
             f"Possibilites after hint: {sum([len(self.hand_possible_cards[idx]) for idx in range(self.num_cards)])}"
@@ -101,9 +111,12 @@ class Agent(object):
         pass
 
     def play(self, play: int) -> SerializedGameData:
+        # breakpoint()
+
         logging.info(f"{self.name} played {play}")
         request = gd.ClientPlayerPlayCardRequest(self.name, play).serialize()
-        self.hand_possible_cards[play] = deepcopy(self.total_possible_cards)
+        del self.hand_possible_cards[play]
+        self.hand_possible_cards.append(deepcopy(self.total_possible_cards))
         return request
 
     def hint(self, hinted_player_name: str, hint_type: str, hint_value: str, player_list: List[game.Player] = None) -> SerializedGameData:
@@ -117,7 +130,9 @@ class Agent(object):
         return request
     
     def discard(self, card_idx: int) -> SerializedGameData:
-        self.hand_possible_cards[card_idx] = deepcopy(self.total_possible_cards)
+
+        del self.hand_possible_cards[card_idx]
+        self.hand_possible_cards.append(deepcopy(self.total_possible_cards))
         logging.info(f"{self.name} discarded {card_idx}")
         request = gd.ClientPlayerDiscardCardRequest(self.name, card_idx).serialize()
         return request
@@ -137,29 +152,29 @@ class Agent(object):
             if player.name == hinted_player:
                 for idx, card in enumerate(player.hand):
                     if compare_value(card, hint_value):
-                        self.list_given_hint[hinted_player][idx].append((hint_type, hint_value))
+                        self.list_given_hint[hinted_player][idx].add((hint_type, hint_value))
             break
 
     def player_playable_card(self, player_list: List[game.Player], table_state: Dict[str, List[int]]) -> Tuple[
         str, str, object]:
 
-        pos_hint = ["value", "color"]
-        pos_cards = []
+        pos_cards = set()
 
         for server_player in player_list:
             for card_idx, card  in enumerate(server_player.hand):
                 if utility.playable(card, table_state):
                     if not self.hinted_color(card, card_idx, server_player.name):
-                        pos_cards.append((server_player.name, "color", card.color))
+                        pos_cards.add((server_player.name, "color", card.color))
                     if not self.hinted_value(card, card_idx, server_player.name):
-                        pos_cards.append((server_player.name, "value", card.value))
+                        pos_cards.add((server_player.name, "value", card.value))
 
         if len(pos_cards) == 0:
             return None
 
-        card_idx = np.random.choice(len(pos_cards), 1)[0]
+        list_pos_cards = list(pos_cards)
+        card_idx = np.random.choice(len(list_pos_cards), 1)[0]
 
-        return pos_cards[card_idx]
+        return list_pos_cards[card_idx]
 
     def hinted_color(self, card: game.Card, card_idx: int, player_name: str) -> bool:
 

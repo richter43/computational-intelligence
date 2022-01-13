@@ -48,17 +48,17 @@ def get_name() -> str:
     return name
 
 
-def cut_and_return(data: bytes):
-
-    """
-    Splits the bytes information if there's more than one packet that was received
-    """
-    final_index = data.find(b"ub.") + 3
-
-    if len(data) != final_index:
-        return data[final_index:]
-
-    return None
+# def cut_and_return(data: bytes):
+#  I have wasted my time
+#     """
+#     Splits the bytes information if there's more than one packet that was received
+#     """
+#     final_index = data.find(b"ub.") + 3
+#
+#     if len(data) != final_index:
+#         return data[final_index:]
+#
+#     return None
 
 
 def player_thread(tid: int) -> None:
@@ -109,15 +109,18 @@ def player_thread(tid: int) -> None:
 
             try:
 
-                if queue is None:
-                    #TODO: Order received packets
-                    data = sock.recv(constants.DATASIZE)
-                    queue = cut_and_return(data)
-                    data = gd.GameData.deserialize(data)
-
-                else:
-                    data = gd.GameData.deserialize(queue)
-                    queue = cut_and_return(queue)
+                # if queue is None:
+                #     Again, wasted my time
+                #     #TODO: Order received packets
+                #     data = sock.recv(constants.DATASIZE)
+                #     queue = cut_and_return(data)
+                #     data = gd.GameData.deserialize(data)
+                #
+                # else:
+                #     data = gd.GameData.deserialize(queue)
+                #     queue = cut_and_return(queue)
+                data = sock.recv(constants.DATASIZE)
+                data = gd.GameData.deserialize(data)
             except:
                 sock.close()
                 return
@@ -155,8 +158,8 @@ def player_thread(tid: int) -> None:
             elif type(data) is gd.ServerGameStateData:
                 # %% Code in which a decision is going to be taken
 
-                if tid == 0:
-                    breakpoint()
+                # if tid == 0:
+                #     breakpoint()
 
                 handlers.handle_gamestate_player(data, player, sock)
 

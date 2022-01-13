@@ -35,8 +35,6 @@ class DeterministicAgent(Agent):
             [utility.playable_percentage(cloud_card, data.tableCards) for cloud_card in self.hand_possible_cards])
         max_playability = np.max(playability_percentages)
 
-        breakpoint()
-
         if max_playability > 0.6:
             # Play if possible
             max_idx = np.argmax(playability_percentages)
@@ -46,7 +44,7 @@ class DeterministicAgent(Agent):
             ret_hint = self.player_playable_card(data.players, data.tableCards)
 
             if ret_hint is None:
-                ret_hint = utility.random_hint(data.players)
+                ret_hint = utility.random_hint([server_player for server_player in data.players if server_player.name != self.name])
 
             player_name, hint_type, hint = ret_hint
             request = super().hint(player_name, hint_type, hint, data.players)
