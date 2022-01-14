@@ -7,7 +7,7 @@ Created on Sat Dec 11 19:01:33 2021
 """
 import time
 from threading import Thread, Barrier, Lock
-from typing import List
+from typing import List, Dict
 import sys
 import socket
 import logging
@@ -66,7 +66,7 @@ def get_name() -> str:
 #     return None
 
 
-def player_thread(tid: int, ret: List[int]) -> None:
+def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[str, object]) -> None:
     """
     Player instantiated in a separate thread
     """
@@ -78,7 +78,16 @@ def player_thread(tid: int, ret: List[int]) -> None:
 
         # Situational optimization (Repeat a given context to see what is the best move)
 
-        player = agents.DeterministicAgent(get_name())
+        if tid == 0:
+            breakpoint()
+            if player_type == "ga":
+                player = agents.GAAgent(get_name(), player_info["ga_max_playability"])
+            elif player_type == "random":
+                player = agents.RandomAgent(get_name())
+            else:
+                player = agents.DeterministicAgent(get_name())
+        else:
+            player = agents.DeterministicAgent(get_name())
         # player_knowledge = None Implements what other agents currently know about their cards, see if it's worth
 
         # %% Adding player to the game
@@ -219,11 +228,16 @@ if __name__ == "__main__":
     mutex = Lock()
     first = True
 
+    player_info = {}
+
+    if args.player_type == "ga":
+        player_info["ga_max_playability"] = args.ga_max_playability
+
     threads = list()
 
     ret = [0]
     for i in range(am_players):
-        t = Thread(target=player_thread, args=(i,ret))
+        t = Thread(target=player_thread, args=(i, ret, args.player_type, player_info))
         threads.append(t)
         t.start()
 
