@@ -79,7 +79,6 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
         # Situational optimization (Repeat a given context to see what is the best move)
 
         if tid == 0:
-            breakpoint()
             if player_type == "ga":
                 player = agents.GAAgent(get_name(), player_info["ga_max_playability"])
             elif player_type == "random":
@@ -102,10 +101,9 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
             sys.exit("Error, could not correctly connect to the server")
 
         barrier.wait()
-
-        if tid == 0:
-            # breakpoint()
-            barrier.reset()
+        barrier.reset()
+        # if tid == 0:
+        #     breakpoint()
 
         # %% Starting game
 
@@ -115,7 +113,7 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
         logging.info(f"{player.name} joined")
 
         run = True
-        queue = None
+        # queue = None
         prev_turn = None
 
         while run:
@@ -144,6 +142,10 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
             logging.debug(f"Received -> {player.name} : {type(data)}")
 
             if type(data) is gd.ServerStartGameData:
+
+                if tid == 0:
+                    breakpoint()
+
                 handlers.handle_startgame_player(data, player, barrier, sock)
 
             elif type(data) is gd.ServerPlayerMoveOk:
@@ -204,7 +206,8 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
 
                 if(tid == 0):
                     # breakpoint()
-                    ret[0] = data.score
+                    if ret is not None:
+                        ret[0] = data.score
                 run = False
 
             barrier_turn_end.wait()
@@ -212,19 +215,20 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
 
         logging.info("Game is over")
 
+def main(args, ret=None):
 
-# %% Main
-if __name__ == "__main__":
-
-    args = parse.parse_arguments()
+    global barrier
+    global barrier_turn_start
+    global barrier_turn_end
+    global mutex
+    global first
 
     logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
 
-    am_players = args.num_players
     # Barriers used for simulating turns
-    barrier = Barrier(am_players)
-    barrier_turn_start = Barrier(am_players)
-    barrier_turn_end = Barrier(am_players)
+    barrier = Barrier(args.num_players)
+    barrier_turn_start = Barrier(args.num_players)
+    barrier_turn_end = Barrier(args.num_players)
     mutex = Lock()
     first = True
 
@@ -235,15 +239,28 @@ if __name__ == "__main__":
 
     threads = list()
 
-    ret = [0]
-    for i in range(am_players):
-        t = Thread(target=player_thread, args=(i, ret, args.player_type, player_info))
+    for i in range(args.num_players):
+        if i == 0:
+            t = Thread(target=player_thread, args=(i, ret, args.player_type, player_info))
+        else:
+            t = Thread(target=player_thread, args=(i, ret, "deterministic", player_info))
         threads.append(t)
         t.start()
 
     for t in threads:
         t.join()
 
-    if args.training:
-        with open(f"{am_players}-deterministic.csv",'a') as f:
+    if args.training and ret is not None:
+        with open(f"{args.num_players}-deterministic.csv", 'a') as f:
             f.write(f"{ret[0]},")
+
+
+
+
+# %% Main
+if __name__ == "__main__":
+
+    args = parse.parse_arguments()
+
+    main(args)
+

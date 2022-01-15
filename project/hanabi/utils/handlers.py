@@ -23,6 +23,7 @@ def handle_startgame_player(
     # %% Ready up / Initializes game
     sock.send(gd.ClientPlayerReadyData(player.name).serialize())
     logging.debug(f"Sent -> {player.name} : {gd.ClientPlayerReadyData}")
+
     barrier.wait()
 
     sock.send(gd.ClientGetGameStateRequest(player.name).serialize())

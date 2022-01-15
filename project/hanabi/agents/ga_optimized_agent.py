@@ -13,16 +13,14 @@ from utils import utility
 from .agent_interface import Agent
 
 SerializedGameData = str
-MAX_VALUE = 2**32
 
 
 class GAAgent(Agent):
 
     def __init__(self, name: str, max_playability: float):
 
-        int_max_playability = int(max_playability * MAX_VALUE)
-        self.genotype = np.binary_repr(int_max_playability)
-        self.fenotype = {"max_playability": int(self.genotype[:32],2)/MAX_VALUE }
+        self.chromosome =  [max_playability]
+        self.fenotype = {"max_playability": self.chromosome[0] } #For ease of access
 
         super().__init__(name)
 
@@ -35,8 +33,6 @@ class GAAgent(Agent):
         playability_percentages = np.array(
             [utility.playable_percentage(cloud_card, data.tableCards) for cloud_card in self.hand_possible_cards])
         max_playability = np.max(playability_percentages)
-
-        breakpoint()
 
         if  max_playability > self.fenotype["max_playability"]:
             # Play if possible
