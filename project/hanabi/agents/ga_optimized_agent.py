@@ -39,7 +39,7 @@ class GAAgent(Agent):
         elif data.usedNoteTokens < 8:
             # Hint if possible
 
-            hint_random = np.random.rand()
+            hint_random = 0.5
 
             if hint_random < self.fenotype["random_hint"]:
                 ret_hint = self.player_playable_card(data.players, data.tableCards)
@@ -51,7 +51,7 @@ class GAAgent(Agent):
             request = super().hint(player_name, hint_type, hint, data.players)
         else:
 
-            discard_random = np.random.rand()
+            discard_random = 0.5
 
             if discard_random <  self.fenotype["random_discard"]:
                 discard_card = utility.least_info_card(self.hand_possible_cards)

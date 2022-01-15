@@ -1,9 +1,9 @@
 import time
 from threading import Thread
-from multiprocessing import Process
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple
+import subprocess
 
 import player
 import server
@@ -29,9 +29,7 @@ def genetic_algorithm(args):
 
     for idx in range(args.iterations):
 
-        breakpoint()
-        p = Process(target=server.start_server, args=(args.num_players,))
-        p.start()
+        subprocess.Popen(["python", "server.py", f"{args.num_players}"])
 
         if idx != 0:
 
@@ -60,6 +58,10 @@ def genetic_algorithm(args):
             pop = np.vstack(offspring)
 
         results = fitness_function(args, pop)
+
+        if np.max(results) > 18:
+            print("Best solution: f{pop[results == np.max(results)]}")
+            break
 
 def elites(parents: npt.NDArray[npt.NDArray[np.float32]], fitness: npt.NDArray[np.float32]) -> Tuple[float,float]:
     sorted_order = fitness.argsort()
