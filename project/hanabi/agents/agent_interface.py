@@ -183,3 +183,17 @@ class Agent(object):
     def hinted_value(self, card: game.Card, card_idx: int, player_name: str) -> bool:
 
         return ("value", card.value) in self.list_given_hint[player_name][card_idx]
+
+    def cull_visible_cards(self, data: gd.ServerGameStateData):
+
+        logging.debug(f"Card set size before taking into account player cards: {len(self.total_possible_cards)}")
+
+        for other_player in data.players:
+            del_set = set(other_player.hand) | set(data.discardPile)
+            self.total_possible_cards -= del_set
+            self.hand_possible_cards = [card_set - del_set for card_set in self.hand_possible_cards]
+
+        logging.debug(f"Card set size after taking into account player cards: {len(self.total_possible_cards)}")
+
+    def reset_total_cards(self):
+        self.total_possible_cards = set(self.local_game._Game__cardsToDraw)

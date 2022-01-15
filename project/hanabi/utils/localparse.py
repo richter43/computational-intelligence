@@ -22,6 +22,8 @@ def parse_arguments() -> argparse.Namespace:
     args.add_argument("--training", action='store_true')
     args.add_argument("--player_type", type=str, choices=["random", "ga", "deterministic"])
     args.add_argument("--ga_max_playability", type=float, default=0.6)
+    args.add_argument("--random_discard", type=float, default=0.5)
+    args.add_argument("--random_hint", type=float, default=0.5)
 
     args = args.parse_args()
 

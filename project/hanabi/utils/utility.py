@@ -99,6 +99,9 @@ def rarity(card: game.Card, playable_cards: Set[game.Card]) -> float:
 def playable_percentage(cloud_cards: Set[game.Card], table_state: Dict[Suit, List[int]]) -> float:
 
     #TODO dividing by zero, check
+    #In the event that a division by zero occurs it's due to the fact that the server has replied before processing the current
+    #player's play, and thus possibliy deleting the card from their own hand, whenever a hint is given it's for the wrong
+    #hand, and thus it would then be incorrectly culled.
 
     can_play = 0
 
@@ -147,6 +150,8 @@ def playable_percentage(cloud_cards: Set[game.Card], table_state: Dict[Suit, Lis
 #
 #     return set(pos_hints)
 
+def choose_random_card(card_amount:int) -> int:
+    return np.random.randint(0, card_amount)
 
 def least_info_card(list_cloud_cards: List[Set[game.Card]]) -> int:
 
@@ -169,3 +174,7 @@ def random_hint(players: List[game.Player]):
         value = card.color
 
     return (player.name, sel_type, value)
+
+def make_chromosome(args):
+
+    return [args.ga_max_playability, args.random_hint, args.random_discard]

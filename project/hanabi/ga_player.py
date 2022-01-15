@@ -1,5 +1,6 @@
 import time
 from threading import Thread
+from multiprocessing import Process
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple
@@ -9,7 +10,8 @@ import server
 import utils.localparse as parse
 import ga
 
-POPULATION = 16
+POPULATION = 4
+GENE_SIZE = 3
 
 crossover_functions = [ga.Crossover.simulated_binary_crossover, ga.Crossover.single_point_crossover]
 mutation_functions = [ga.Mutation.random_mutation, ga.Mutation.normally_distributed_mutation, ga.Mutation.alternate_random_mutation]
@@ -22,21 +24,21 @@ def genetic_algorithm(args):
         args: Namespace that contains all of the parsed arguments at execution time
     """
 
-    pop = initial_population(1, POPULATION)
-
+    pop = initial_population(POPULATION, GENE_SIZE)
     results = np.zeros(POPULATION, dtype=(np.float32, np.float32))
 
     for idx in range(args.iterations):
 
+        breakpoint()
+        p = Process(target=server.start_server, args=(args.num_players,))
+        p.start()
+
         if idx != 0:
-            # sorted_order = results.argsort()
 
             crossover = np.random.choice(crossover_functions, 1)[0]
             mutation = np.random.choice(mutation_functions, 1)[0]
 
-            parent_select = np.random.rand()
-
-            if parent_select < 0.5:
+            if np.random.rand() < 0.5:
                 parent_1, parent_2 = tournament(pop, results), tournament(pop, results)
             else:
                 parent_1, parent_2 = elites(pop, results)
@@ -57,8 +59,7 @@ def genetic_algorithm(args):
 
             pop = np.vstack(offspring)
 
-        for idx_in, individual in enumerate(pop):
-            results[idx] = fitness_function(args, individual)
+        results = fitness_function(args, pop)
 
 def elites(parents: npt.NDArray[npt.NDArray[np.float32]], fitness: npt.NDArray[np.float32]) -> Tuple[float,float]:
     sorted_order = fitness.argsort()
@@ -68,20 +69,13 @@ def elites(parents: npt.NDArray[npt.NDArray[np.float32]], fitness: npt.NDArray[n
 def tournament(parents: npt.NDArray[npt.NDArray[np.float32]], fitness: npt.NDArray[np.float32], tournament_size:int=2) -> float:
 
     idxs = np.random.choice(len(parents), tournament_size, replace=False)
-
-    print(idxs)
-
     tmp_parents = parents[idxs]
-
-    print(tmp_parents)
-    print(fitness[idxs])
-
     best_parent_idx = np.argmax(fitness[idxs])
 
     return tmp_parents[best_parent_idx]
 
 
-def initial_population(chromosome_size: int, population_size: int) -> npt.NDArray[npt.NDArray[np.float32]]:
+def initial_population(population_size: int, chromosome_size: int) -> npt.NDArray[npt.NDArray[np.float32]]:
     """
 
     Initializes the population by creating random individuals
@@ -95,30 +89,31 @@ def initial_population(chromosome_size: int, population_size: int) -> npt.NDArra
     """
     return np.random.random((population_size, chromosome_size))
 
-def fitness_function(args, chromosome: npt.NDArray[np.float32]) -> float:
+def fitness_function(args, chromosome_array: npt.NDArray[npt.NDArray[np.float32]]) -> float:
 
-    breakpoint()
 
-    args.ga_max_playability = chromosome[0]
-    args.player_type = "ga"
 
     threads = []
-    tmp_ret = [0]
+    tmp_ret = []
 
-    t = Thread(target=server.start_server, args=(args.num_players,))
-    threads.append(t)
-    t.start()
+    # t = Thread(target=server.start_server, args=(args.num_players,))
+    # threads.append(t)
+    # t.start()
 
-    time.sleep(2)
+    time.sleep(1) #Sadly, it's the only way to be sure that the server has started before instantiating the agents
 
-    t = Thread(target=player.main, args=(args, tmp_ret))
-    threads.append(t)
-    t.start()
+    for idx in range(args.num_players):
+        if idx == 0:
+            t = Thread(target=player.main_ga_wrapper, args=(args, idx, tmp_ret, "ga", chromosome_array.shape[0], [chromosome for chromosome in chromosome_array]))
+        else:
+            t = Thread(target=player.main_ga_wrapper, args=(args, idx, tmp_ret, "deterministic", chromosome_array.shape[0]))
+        threads.append(t)
+        t.start()
 
     for t in threads:
         t.join()
 
-    return tmp_ret[0]
+    return np.array(tmp_ret)
 
 if __name__ == "__main__":
 

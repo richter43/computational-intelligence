@@ -7,6 +7,7 @@ Created on Tue Dec 28 15:22:39 2021
 """
 
 import numpy as np
+import numpy.typing as npt
 
 import GameData as gd
 from utils import utility
@@ -17,10 +18,7 @@ SerializedGameData = str
 
 class GAAgent(Agent):
 
-    def __init__(self, name: str, max_playability: float):
-
-        self.chromosome =  [max_playability]
-        self.fenotype = {"max_playability": self.chromosome[0] } #For ease of access
+    def __init__(self, name: str):
 
         super().__init__(name)
 
@@ -40,16 +38,32 @@ class GAAgent(Agent):
             request = super().play(max_idx)
         elif data.usedNoteTokens < 8:
             # Hint if possible
-            ret_hint = self.player_playable_card(data.players, data.tableCards)
 
-            if ret_hint is None:
+            hint_random = np.random.rand()
+
+            if hint_random < self.fenotype["random_hint"]:
+                ret_hint = self.player_playable_card(data.players, data.tableCards)
+
+            if hint_random > self.fenotype["random_hint"] or ret_hint is None:
                 ret_hint = utility.random_hint([server_player for server_player in data.players if server_player.name != self.name])
 
             player_name, hint_type, hint = ret_hint
             request = super().hint(player_name, hint_type, hint, data.players)
         else:
-            least_info_card = utility.least_info_card(self.hand_possible_cards)
-            request = super().discard(least_info_card)
+
+            discard_random = np.random.rand()
+
+            if discard_random <  self.fenotype["random_discard"]:
+                discard_card = utility.least_info_card(self.hand_possible_cards)
+            else:
+                discard_card = utility.choose_random_card(self.num_cards)
+
+            request = super().discard(discard_card)
         #Discard the card we know the least about
 
         return request
+
+    def set_chromosome(self, chromosome: npt.NDArray[np.float32]):
+
+        self.chromosome = chromosome
+        self.fenotype = {"max_playability": self.chromosome[0], "random_hint": self.chromosome[1], "random_discard": self.chromosome[2]}

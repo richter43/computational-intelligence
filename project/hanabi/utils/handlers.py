@@ -8,17 +8,20 @@ Created on Mon Dec 27 00:41:19 2021
 import socket
 from threading import Barrier
 import logging
+from typing import List
 
+import game
 from agents import Agent
 import GameData as gd
 
 
 def handle_startgame_player(
-    data: gd.ServerStartGameData, player: Agent, barrier: Barrier, sock: socket.socket
+    players: List[game.Player], player: Agent, barrier: Barrier, sock: socket.socket
 ):
 
     # Number of cards being played, depends on the amount of agents
-    player.init_hand(data.players)
+    player.reset_total_cards()
+    player.init_hand(players)
 
     # %% Ready up / Initializes game
     sock.send(gd.ClientPlayerReadyData(player.name).serialize())
@@ -40,19 +43,7 @@ def handle_hint_player(data: gd.ServerHintData, player: Agent):
 
 def handle_gamestate_player(data: gd.ServerGameStateData, player: Agent, sock: socket.socket):
 
-    logging.debug(f"Card set size before taking into account player cards: {len(player.total_possible_cards)}")
-
-    # Remove the other agents' cards from the possibility set
-    for other_player in data.players:
-        del_set = set(other_player.hand) | set(data.discardPile)
-        player.total_possible_cards -= del_set
-        player.hand_possible_cards = [card_set - del_set for card_set in player.hand_possible_cards]
-
-    logging.debug(f"Card set size after taking into account player cards: {len(player.total_possible_cards)}")
-
-    if data.currentPlayer == player.name:
-
-        logging.debug(f"Current player: {data.currentPlayer}")
-        # request = random_play(name, num_cards)
-        request = player.decide_action(data)
-        sock.send(request)
+    logging.debug(f"Current player: {data.currentPlayer}")
+    # request = random_play(name, num_cards)
+    request = player.decide_action(data)
+    sock.send(request)

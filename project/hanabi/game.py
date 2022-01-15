@@ -302,7 +302,6 @@ class Game(object):
         self.__players.append(Player(name))
 
     def removePlayer(self, name: str):
-        breakpoint()
         for p in self.__players:
             if p.name == name:
                 self.__players.remove(p)
@@ -326,7 +325,6 @@ class Game(object):
         self.__currentPlayer %= len(self.__players)
 
     def start(self):
-        # breakpoint()
         self.__lastMoves = len(self.__players) + 1
         shuffle(self.__cardsToDraw)
         if len(self.__players) < 2:

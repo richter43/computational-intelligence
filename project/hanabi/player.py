@@ -15,6 +15,7 @@ import numpy as np
 import csv
 import os
 
+import numpy.typing as npt
 import subprocess
 
 import constants
@@ -50,6 +51,8 @@ def get_name() -> str:
     names.remove(name)
     mutex.release()
 
+    names = set(["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"])
+
     return name
 
 
@@ -66,7 +69,7 @@ def get_name() -> str:
 #     return None
 
 
-def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[str, object]) -> None:
+def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]]=None) -> None:
     """
     Player instantiated in a separate thread
     """
@@ -75,12 +78,13 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
     global first
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((constants.HOST, constants.PORT))
 
         # Situational optimization (Repeat a given context to see what is the best move)
 
         if tid == 0:
             if player_type == "ga":
-                player = agents.GAAgent(get_name(), player_info["ga_max_playability"])
+                player = agents.GAAgent(get_name())
             elif player_type == "random":
                 player = agents.RandomAgent(get_name())
             else:
@@ -91,7 +95,7 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
 
         # %% Adding player to the game
         request = gd.ClientPlayerAddData(player.name).serialize()
-        sock.connect((constants.HOST, constants.PORT))
+
         sock.send(request)
         # Checking connection, exit if not done
         data = sock.recv(constants.DATASIZE)
@@ -112,108 +116,139 @@ def player_thread(tid: int, ret: List[int], player_type: str, player_info: Dict[
 
         logging.info(f"{player.name} joined")
 
-        run = True
-        # queue = None
-        prev_turn = None
+        bypass = False
+        players = None
 
-        while run:
+        for _ in range(iterations):
 
-            barrier_turn_start.wait()
-            barrier_turn_start.reset()
+            if player_type == "ga" and chromosomes:
+                chromosome = chromosomes.pop()
+                player.set_chromosome(chromosome)
 
-            try:
+            run = True
+            # queue = None
+            # prev_turn = None
+            played = False
 
-                # if queue is None:
-                #     Again, wasted my time
-                #     #TODO: Order received packets
-                #     data = sock.recv(constants.DATASIZE)
-                #     queue = cut_and_return(data)
-                #     data = gd.GameData.deserialize(data)
-                #
-                # else:
-                #     data = gd.GameData.deserialize(queue)
-                #     queue = cut_and_return(queue)
-                data = sock.recv(constants.DATASIZE)
-                data = gd.GameData.deserialize(data)
+            while run:
 
-            except:
-                run = False
+                barrier_turn_start.wait()
+                barrier_turn_start.reset()
 
-            logging.debug(f"Received -> {player.name} : {type(data)}")
+                try:
 
-            if type(data) is gd.ServerStartGameData:
+                    # if queue is None:
+                    #     Again, wasted my time
+                    #     #TODO: Order received packets
+                    #     data = sock.recv(constants.DATASIZE)
+                    #     queue = cut_and_return(data)
+                    #     data = gd.GameData.deserialize(data)
+                    #
+                    # else:
+                    #     data = gd.GameData.deserialize(queue)
+                    #     queue = cut_and_return(queue)
+                    if not bypass:
+                        data = sock.recv(constants.DATASIZE)
+                        data = gd.GameData.deserialize(data)
 
-                if tid == 0:
-                    breakpoint()
+                except:
+                    run = False
 
-                handlers.handle_startgame_player(data, player, barrier, sock)
+                logging.debug(f"Received -> {player.name} : {type(data)}")
 
-            elif type(data) is gd.ServerPlayerMoveOk:
-                logging.info("Good move")
-                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                if type(data) is gd.ServerStartGameData or (bypass and type(data) is gd.ServerGameOver):
 
-            elif type(data) is gd.ServerPlayerThunderStrike:
-                logging.info("Bad move")
+                    if players is None:
+                        players = data.players
 
-                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                    # if tid == 0:
+                    #     breakpoint()
 
-            elif type(data) is gd.ServerActionValid:
-                # Might be useful in the future, keeping track of how does each player plays
+                    handlers.handle_startgame_player(players, player, barrier, sock)
+                    bypass = False
 
-                if data.action == "discard":
+
+                elif type(data) is gd.ServerPlayerMoveOk:
+                    logging.info("Good move")
+
+                    time.sleep(0.1)
                     sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
-            elif type(data) is gd.ServerActionInvalid:
+                elif type(data) is gd.ServerPlayerThunderStrike:
+                    logging.info("Bad move")
 
-                logging.info(f"Player: {player.name} has done wrong.")
+                    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
-                # breakpoint()
+                elif type(data) is gd.ServerActionValid:
+                    # Might be useful in the future, keeping track of how does each player plays
+                    time.sleep(0.1)
+                    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
-                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                elif type(data) is gd.ServerActionInvalid:
 
-            elif type(data) is gd.ServerGameStateData:
-                # %% Code in which a decision is going to be taken
+                    logging.info(f"Player: {player.name} has done wrong.")
 
-                # if tid == 0:
-                #     breakpoint()
-
-                if prev_turn == data.currentPlayer:
-                    continue
-
-                prev_turn = data.currentPlayer
-
-                handlers.handle_gamestate_player(data, player, sock)
-
-            elif type(data) is gd.ServerHintData:
-                # %% Managing received hints
-
-                # if tid == 0:
-                #     breakpoint()
-
-                handlers.handle_hint_player(data, player)
-
-                sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
-                logging.debug(f"Sent -> {player.name} : {gd.ClientGetGameStateRequest}")
-
-            elif type(data) is gd.ServerInvalidDataReceived:
-                # %% Managing bad code
-                logging.debug(f"Contents: {data.data}")
-
-            elif type(data) is gd.ServerGameOver:
-                # %% Managing the end of the game
-
-                # breakpoint()
-
-                if(tid == 0):
                     # breakpoint()
-                    if ret is not None:
-                        ret[0] = data.score
-                run = False
 
-            barrier_turn_end.wait()
-            barrier_turn_end.reset()
+                    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
-        logging.info("Game is over")
+                elif type(data) is gd.ServerGameStateData:
+                    # %% Code in which a decision is going to be taken
+
+                    # if tid == 0:
+                    #     breakpoint()
+
+                    player.cull_visible_cards(data)
+
+                    if data.currentPlayer == player.name and played:
+                        logging.info(f"It's not {player.name}'s turn")
+                        time.sleep(0.1)
+                        sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                        played = False
+                    elif data.currentPlayer == player.name:
+                        handlers.handle_gamestate_player(data, player, sock)
+                        played = True
+                    else:
+                        played = False
+
+
+                elif type(data) is gd.ServerHintData:
+                    # %% Managing received hints
+
+                    # if tid == 0:
+                    #     breakpoint()
+
+                    handlers.handle_hint_player(data, player)
+
+                    prev_turn = None
+
+                    sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
+                    logging.debug(f"Sent -> {player.name} : {gd.ClientGetGameStateRequest}")
+
+                elif type(data) is gd.ServerInvalidDataReceived:
+                    # %% Managing bad code
+                    logging.debug(f"Contents: {data.data}")
+
+                elif type(data) is gd.ServerGameOver:
+                    # %% Managing the end of the game
+
+                    # breakpoint()
+
+                    if(tid == 0):
+                        if ret is not None:
+                            ret.append(data.score)
+                    run = False
+                    barrier.reset()
+                    barrier_turn_start.reset()
+
+                barrier_turn_end.wait()
+                barrier_turn_end.reset()
+
+            logging.info("Game is over")
+            # if tid == 0:
+            #     breakpoint()
+
+            bypass = True
 
 def main(args, ret=None):
 
@@ -235,15 +270,15 @@ def main(args, ret=None):
     player_info = {}
 
     if args.player_type == "ga":
-        player_info["ga_max_playability"] = args.ga_max_playability
+        chromosome = [utility.make_chromosome(args)]
 
     threads = list()
 
     for i in range(args.num_players):
         if i == 0:
-            t = Thread(target=player_thread, args=(i, ret, args.player_type, player_info))
+            t = Thread(target=player_thread, args=(i, ret, args.player_type, args.iterations, chromosome))
         else:
-            t = Thread(target=player_thread, args=(i, ret, "deterministic", player_info))
+            t = Thread(target=player_thread, args=(i, ret, "deterministic", args.iterations))
         threads.append(t)
         t.start()
 
@@ -253,6 +288,24 @@ def main(args, ret=None):
     if args.training and ret is not None:
         with open(f"{args.num_players}-deterministic.csv", 'a') as f:
             f.write(f"{ret[0]},")
+
+def main_ga_wrapper(args, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]]=None) :
+    global barrier
+    global barrier_turn_start
+    global barrier_turn_end
+    global mutex
+    global first
+
+    logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
+
+    # Barriers used for simulating turns
+    barrier = Barrier(args.num_players)
+    barrier_turn_start = Barrier(args.num_players)
+    barrier_turn_end = Barrier(args.num_players)
+    mutex = Lock()
+    first = True
+
+    player_thread(tid, ret, player_type, iterations, chromosomes)
 
 
 
