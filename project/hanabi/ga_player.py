@@ -4,9 +4,9 @@ import numpy as np
 import numpy.typing as npt
 from typing import Tuple
 import subprocess
+import csv
 
 import player
-import server
 import utils.localparse as parse
 import ga
 
@@ -58,9 +58,11 @@ def genetic_algorithm(args):
             pop = np.vstack(offspring)
 
         results = fitness_function(args, pop)
+        with open(f"best_chromosomes.csv", 'a') as f:
+            f.write(f"{pop[results == np.max(results)][0]},{np.max(results)}\n")
 
         if np.max(results) > 18:
-            print("Best solution: f{pop[results == np.max(results)]}")
+            print(f"Best solution: {pop[results == np.max(results)]}")
             break
 
 def elites(parents: npt.NDArray[npt.NDArray[np.float32]], fitness: npt.NDArray[np.float32]) -> Tuple[float,float]:
@@ -89,20 +91,15 @@ def initial_population(population_size: int, chromosome_size: int) -> npt.NDArra
     Returns:
 
     """
+
     return np.random.random((population_size, chromosome_size))
 
 def fitness_function(args, chromosome_array: npt.NDArray[npt.NDArray[np.float32]]) -> float:
 
-
-
     threads = []
     tmp_ret = []
 
-    # t = Thread(target=server.start_server, args=(args.num_players,))
-    # threads.append(t)
-    # t.start()
-
-    time.sleep(1) #Sadly, it's the only way to be sure that the server has started before instantiating the agents
+    time.sleep(1) #Sadly, it's the only way to ensure that the server has started before instantiating the agents
 
     for idx in range(args.num_players):
         if idx == 0:
