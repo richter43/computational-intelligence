@@ -5,28 +5,26 @@ Created on Sat Dec 11 19:01:33 2021
 
 @author: foxtrot
 """
-import time
-from threading import Thread, Barrier, Lock
-from typing import List, Dict
-import sys
-import socket
 import logging
+import socket
+import sys
+import time
+from argparse import Namespace
+from threading import Thread, Barrier, Lock
+from typing import List, Optional
+
 import numpy as np
-import csv
-import os
-
 import numpy.typing as npt
-import subprocess
 
-import constants
 import GameData as gd
-import utils.localparse as parse
-import utils.handlers as handlers
-import utils.utility as utility
 import agents
+import constants
+import utils.handlers as handlers
+import utils.localparse as parse
+import utils.utility as utility
 
 # %% Global variables
-names = set(["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"])
+names = {"Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"}
 
 barrier = None
 mutex = None
@@ -35,12 +33,15 @@ first = None
 barrier_turn_start = None
 barrier_turn_end = None
 
+
 def get_name() -> str:
     """
     Takes, removes and returns a name from the list.
     This code is thread-safe.
-    """
 
+    Returns:
+        name in a string format
+    """
     global names
     global mutex
 
@@ -71,8 +72,19 @@ def get_name() -> str:
 
 def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]]=None) -> None:
     """
-    Player instantiated in a separate thread
+    Code which will run the agent/player
+    Args:
+        tid: Thread ID (Used for debugging purposes)
+        ret: List in which the scores will be returned
+        player_type: Type of agent that will be instantiated
+        iterations: Amount of games that will be played
+        chromosomes: List of chromosomes for a GA agent
+
+    NOTE: the code could be simplified by passing an Agent object directly, however, Python erroneously points to the wrong
+    'self' object whenever a method is executed if the agent is instantiated in a different thread, no idea why this occurs
+    and there's nowhere in which this problem has been discussed.
     """
+
     global barrier
     global mutex
     global first
@@ -250,8 +262,16 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
 
             bypass = True
 
-def main(args, ret=None):
 
+def main(args: Namespace, ret: Optional[List[int]] = None):
+    """
+
+    Main function which will instantiate all the agents
+
+    Args:
+        args: Arguments passed in the command and parsed by argparse
+        ret: Optional list which will return the scores
+    """
     global barrier
     global barrier_turn_start
     global barrier_turn_end
@@ -289,7 +309,15 @@ def main(args, ret=None):
         with open(f"{args.num_players}-deterministic.csv", 'a') as f:
             f.write(f"{ret[0]},")
 
-def main_ga_wrapper(args, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]]=None) :
+
+def main_ga_wrapper(args: Namespace, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]] = None):
+    """
+
+    Wrapper that instantiates a GA agent called from ga_player.py
+
+    Args:
+        See: player_thread for more info
+    """
     global barrier
     global barrier_turn_start
     global barrier_turn_end
@@ -306,8 +334,6 @@ def main_ga_wrapper(args, tid: int, ret: List[int], player_type: str, iterations
     first = True
 
     player_thread(tid, ret, player_type, iterations, chromosomes)
-
-
 
 
 # %% Main
