@@ -10,7 +10,7 @@ Arguments:
 
 + num_players: Number of agents that are going to be instantiated (Default: 1)
 + log: Level in which the log is going to output to console (Default: info)
-+ iterations: Amount of games to play (Default: 1)
++ iterations: Amount of games to play (Default: 1)<
 + training: Training mode
 + player_type: Type of agent that is going to be instantiated (Only one is actually instantiated, the others are deterministic agents)
 

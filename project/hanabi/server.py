@@ -56,8 +56,10 @@ def manageConnection(conn: socket, addr):
                     if type(data) is GameData.ClientPlayerAddData:
                         playerName = data.sender
                         commandQueue[playerName] = []
-                        if playerName in playerConnections.keys():
-                            conn.send(GameData.ServerActionInvalid("Player already registered."))
+                        if playerName in playerConnections.keys() or playerName == "" and playerName is None:
+                            logging.warning("Duplicate player: " + playerName)
+                            conn.send(GameData.ServerActionInvalid("Player with that name already registered.").serialize())
+                            mutex.release()
                             return
                         playerConnections[playerName] = (conn, addr)
                         logging.info("Player connected: " + playerName)
@@ -65,15 +67,10 @@ def manageConnection(conn: socket, addr):
                         conn.send(GameData.ServerPlayerConnectionOk(
                             playerName).serialize())
                     elif type(data) is GameData.ClientPlayerStartRequest:
-                        print(commandQueue)
-                        if playerName not in game.getPlayers() and playerName != "" and playerName is not None:
+                        game.setPlayerReady(playerName)
+                        logging.info("Player ready: " + playerName)
+                        conn.send(GameData.ServerPlayerStartRequestAccepted(len(game.getPlayers()), game.getNumReadyPlayers()).serialize())
 
-                            game.setPlayerReady(playerName)
-                            logging.info("Player ready: " + playerName)
-                            conn.send(GameData.ServerPlayerStartRequestAccepted(len(game.getPlayers()),
-                                                                                game.getNumReadyPlayers()).serialize())
-                        else:
-                            return
                         if len(game.getPlayers()) == game.getNumReadyPlayers() and len(game.getPlayers()) >= numPlayers:
                             listNames = []
                             for player in game.getPlayers():
