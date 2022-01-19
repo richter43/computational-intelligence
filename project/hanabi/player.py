@@ -289,6 +289,7 @@ def main(args: Namespace, ret: Optional[List[int]] = None):
 
     player_info = {}
 
+    chromosome = None
     if args.player_type == "ga":
         chromosome = [utility.make_chromosome(args)]
 

@@ -46,6 +46,7 @@ class GAAgent(Agent):
             # Hint if possible
 
             hint_random = 0.5
+            ret_hint = None
 
             if hint_random < self.phenotype["random_hint"]:
                 ret_hint = self.player_playable_card(data.players, data.tableCards)
