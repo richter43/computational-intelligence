@@ -20,7 +20,8 @@ Arguments for agent of type GA
 + random_hint: Set the random hint (Default: 0.5) (Higher means more likely to give a random hint)
 
 Example for playing with itself:
-```python player.py --num_players [2|3|4|5] --player_type [ga|deterministic|random]
+```
+python player.py --num_players [2|3|4|5] --player_type [ga|deterministic|random]
 ```
 
 ## GA agent
