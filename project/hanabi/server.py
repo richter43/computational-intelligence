@@ -13,6 +13,8 @@ mutex = threading.Lock()
 playerConnections = {}
 game = Game()
 
+mutex = threading.Lock()
+
 playersOk = []
 
 statuses = [
@@ -35,7 +37,9 @@ def manageConnection(conn: socket, addr):
         while keepActive:
             print("SERVER WAITING")
             data = conn.recv(DATASIZE)
+
             mutex.acquire(True)
+
             if not data:
                 del playerConnections[playerName]
                 logging.warning("Player disconnected: " + playerName)
@@ -66,6 +70,7 @@ def manageConnection(conn: socket, addr):
                         game.setPlayerReady(playerName)
                         logging.info("Player ready: " + playerName)
                         conn.send(GameData.ServerPlayerStartRequestAccepted(len(game.getPlayers()), game.getNumReadyPlayers()).serialize())
+
                         if len(game.getPlayers()) == game.getNumReadyPlayers() and len(game.getPlayers()) >= numPlayers:
                             listNames = []
                             for player in game.getPlayers():
@@ -76,6 +81,7 @@ def manageConnection(conn: socket, addr):
                                 playerConnections[player][0].send(
                                     GameData.ServerStartGameData(listNames).serialize())
                             game.start()
+
                     # This ensures every player is ready to send requests
                     elif type(data) is GameData.ClientPlayerReadyData:
                         playersOk.append(1)
@@ -131,7 +137,6 @@ def manageInput():
             logging.info("Closing the server...")
             os._exit(0)
 
-
 def manageNetwork():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
@@ -141,7 +146,6 @@ def manageNetwork():
             conn, addr = s.accept()
             threading.Thread(target=manageConnection,
                              args=(conn, addr)).start()
-
 
 def start_server(nplayers):
     global numPlayers
