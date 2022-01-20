@@ -11,7 +11,7 @@ import utils.localparse as parse
 from argparse import Namespace
 import ga
 
-POPULATION = 4
+POPULATION = 16
 GENE_SIZE = 3
 
 crossover_functions = [ga.Crossover.simulated_binary_crossover, ga.Crossover.single_point_crossover]
@@ -147,10 +147,10 @@ def fitness_function(args: Namespace, chromosome_array: npt.NDArray[npt.NDArray[
     for idx in range(args.num_players):
         if idx == 0:
             t = Thread(target=player.player_thread, args=(
-            args, idx, tmp_ret, "ga", chromosome_array.shape[0], [chromosome for chromosome in chromosome_array]))
+            idx, tmp_ret, "ga", chromosome_array.shape[0], [chromosome for chromosome in chromosome_array], args.slowmode))
         else:
             t = Thread(target=player.player_thread,
-                       args=(args, idx, tmp_ret, "deterministic", chromosome_array.shape[0]))
+                       args=(idx, tmp_ret, "deterministic", chromosome_array.shape[0], None, args.slowmode))
         threads.append(t)
         t.start()
 

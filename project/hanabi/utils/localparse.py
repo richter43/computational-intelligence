@@ -24,6 +24,7 @@ def parse_arguments() -> argparse.Namespace:
     args.add_argument("--ga_max_playability", type=float, default=0.6, help="For genetic algorithm player, set thei max_playability")
     args.add_argument("--random_discard", type=float, default=0.5, help="For genetic algorithm player, set the random discard")
     args.add_argument("--random_hint", type=float, default=0.5, help="For genetic algorithm player, set the random hint")
+    args.add_argument("--slowmode", action='store_true', help="If players are trying to play at the wrong turn, try enablling slowmode")
 
     args = args.parse_args()
 

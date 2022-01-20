@@ -11,7 +11,7 @@ import logging
 import numpy as np
 from copy import deepcopy
 import utils.utility as utility
-
+import utils.utility as utils
 
 import game
 import GameData as gd
@@ -29,10 +29,11 @@ class RandomAgent(Agent):
         """
         Decides which course of action is best given the state of the game
         """
+
         val = np.random.rand()
 
         if val < 1/3:
-            request = self.random_play()
+            request = self.play(utils.choose_random_card(self.num_cards))
         elif val > 2/3:
             if data.usedNoteTokens > 1:
                 request = self.random_discard()
@@ -59,7 +60,9 @@ class RandomAgent(Agent):
 
         types = ["value", "color"]
 
-        player = np.random.choice(players, 1)[0]
+        filtered_players = [player for player in players if player.name != self.name]
+
+        player = np.random.choice(filtered_players, 1)[0]
         card = np.random.choice(player.hand, 1)[0]
         sel_type = np.random.choice(types, 1)[0]
 

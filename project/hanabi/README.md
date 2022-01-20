@@ -1,6 +1,11 @@
 # Computational Intelligence 2021-2022
 
-Exam of computational intelligence 2021 - 2022. It requires teaching the client to play the game of Hanabi (rules can be found [here](https://www.spillehulen.dk/media/102616/hanabi-card-game-rules.pdf)).
+Computational Intelligence exam done by Samuel Oreste Abreu - s281568
+
+# Description
+
+This here developed software consists of a fully working Hanabi agent, the main implementation is that of an optimized agent
+through Genetic Algorithm using a floating point representation.
 
 ## Agent
 
@@ -10,18 +15,19 @@ Arguments:
 
 + num_players: Number of agents that are going to be instantiated (Default: 1)
 + log: Level in which the log is going to output to console (Default: info)
-+ iterations: Amount of games to play (Default: 1)<
++ iterations: Amount of games to play (Default: 1)
 + training: Training mode
 + player_type: Type of agent that is going to be instantiated (Only one is actually instantiated, the others are deterministic agents)
++ slowmode: Slows the execution, recommended for games with less than 3 players
 
 Arguments for agent of type GA
 + ga_max_playability: Set the max_playability (Default 0.6) (Higher means more likely to maximize the playability)
-+ random_discard: Set the random discard (Default: 0.5) (Higher means more likely to do a random discard)
-+ random_hint: Set the random hint (Default: 0.5) (Higher means more likely to give a random hint)
++ random_discard: Set the random discard (Default: 0.5) (>0.5 means random discard)
++ random_hint: Set the random hint (Default: 0.5) (>0.5 means random hint)
 
 Example for playing with itself:
 ```
-python player.py --num_players [2|3|4|5] --player_type [ga|deterministic|random]
+python player.py --num_players [1|2|3|4|5] --player_type [ga|deterministic|random]
 ```
 
 ## GA agent
@@ -38,8 +44,29 @@ Arguments:
 
 Arguments for agent of type GA
 + ga_max_playability: Set the max_playability (Default 0.6) (Higher means more likely to maximize the playability)
-+ random_discard: Set the random discard (Default: 0.5) (Higher means more likely to do a random discard)
-+ random_hint: Set the random hint (Default: 0.5) (Higher means more likely to give a random hint)
++ random_discard: Set the random discard (Default: 0.5) (1.0 means random discard)
++ random_hint: Set the random hint (Default: 0.5) (1.0 means random hint)
+
+## Extra comments and observations
+
++ It was implemented using threads in order to further simulate turns through the usage of barriers, however, this didn't help.
++ Python would point to the wrong 'self' object whenever a thread was instantiated outside of the module file (Reasons unknown).
++ After many iterations it was observed that in games with many players a player which has some idea of how to play would not affect the final result much.
++ On the other hand, a player can indeed negatively influence the game (Due to either ignorance or maliciousness) and ruin the match.
++ A ga_max_playability of between 0.6 and 0.8 was considered to be optimal.
++ random_discard seemingly had no effect on the final score.
++ random_hint.
+
+## Possible improvements
+
++ Addition of further playing rules.
+
++ Numbering of turns in the server-side application would greatly simplify this code.
++ Decreasing the size of fixed packets or using variable length packets (As sometimes the server's packet buffer would fill way too fast)
+
+## Original comments
+
+Exam of computational intelligence 2021 - 2022. It requires teaching the client to play the game of Hanabi (rules can be found [here](https://www.spillehulen.dk/media/102616/hanabi-card-game-rules.pdf)).
 
 ## Server
 
