@@ -50,6 +50,8 @@ def handle_hint_player(data: gd.ServerHintData, agent: Agent):
     """
     if data.destination == agent.name:
         agent.cull_possibilities(data)
+    else:
+        agent.append_other_player_given_hint(data)
 
 
 def handle_gamestate_player(data: gd.ServerGameStateData, agent: Agent, sock: socket.socket):

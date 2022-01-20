@@ -24,11 +24,11 @@ import utils.localparse as parse
 import utils.utility as utility
 
 # %% Global variables
-names = {"Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"}
+names = ["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"]
 
 barrier = None
 mutex = None
-first = None
+first = False
 
 barrier_turn_start = None
 barrier_turn_end = None
@@ -46,13 +46,11 @@ def get_name() -> str:
     global mutex
 
     mutex.acquire()
-    name = np.random.choice(list(names), 1)[0]
+    name = np.random.choice(names, 1)[0]
     # Casting to regular string due to numpy being weird and having its own string type ????
     name = str(name)
     names.remove(name)
     mutex.release()
-
-    names = set(["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"])
 
     return name
 
@@ -84,7 +82,7 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
     'self' object whenever a method is executed if the agent is instantiated in a different thread, no idea why this occurs
     and there's nowhere in which this problem has been discussed.
     """
-
+    global names
     global barrier
     global mutex
     global first
@@ -118,8 +116,8 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
 
         barrier.wait()
         barrier.reset()
-        # if tid == 0:
-        #     breakpoint()
+        if tid == 0:
+            breakpoint()
 
         # %% Starting game
 
@@ -183,17 +181,36 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
                 elif type(data) is gd.ServerPlayerMoveOk:
                     logging.info("Good move")
 
-                    time.sleep(0.1)
+                    # if tid == 0:
+                    #     breakpoint()
+
+                    if data.lastPlayer != player.name:
+                        player.remove_hint_after_play(data.lastPlayer, data.cardHandIndex)
+
+                    # time.sleep(0.5)
                     sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
                 elif type(data) is gd.ServerPlayerThunderStrike:
                     logging.info("Bad move")
 
+                    # if tid == 0:
+                    #     breakpoint()
+
+                    if data.lastPlayer != player.name:
+                        player.remove_hint_after_play(data.lastPlayer, data.cardHandIndex)
+
                     sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
                 elif type(data) is gd.ServerActionValid:
                     # Might be useful in the future, keeping track of how does each player plays
-                    time.sleep(0.1)
+                    # time.sleep(0.5)
+
+                    # if tid == 0:
+                    #     breakpoint()
+
+                    if data.lastPlayer != player.name:
+                        player.remove_hint_after_play(data.lastPlayer, data.cardHandIndex)
+
                     sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
 
                 elif type(data) is gd.ServerActionInvalid:
@@ -214,7 +231,7 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
 
                     if data.currentPlayer == player.name and played:
                         logging.info(f"It's not {player.name}'s turn")
-                        time.sleep(0.1)
+                        time.sleep(0.5)
                         sock.send(gd.ClientGetGameStateRequest(player.name).serialize())
                         played = False
                     elif data.currentPlayer == player.name:
@@ -247,9 +264,11 @@ def player_thread(tid: int, ret: List[int], player_type: str, iterations: int, c
                     # breakpoint()
 
                     if(tid == 0):
+                        names = ["Richard", "Rasmus", "Tony", "Aubrey", "Don Juan", "Graham", "Dennis", "Jones"]
                         if ret is not None:
                             ret.append(data.score)
                     run = False
+                    first = False
                     barrier.reset()
                     barrier_turn_start.reset()
 
@@ -311,31 +330,52 @@ def main(args: Namespace, ret: Optional[List[int]] = None):
             f.write(f"{ret[0]},")
 
 
-def main_ga_wrapper(args: Namespace, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]] = None):
-    """
+# def main_ga_wrapper(args: Namespace, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]] = None):
+#     """
+#
+#     Wrapper that instantiates a GA agent called from ga_player.py
+#
+#     Args:
+#         See: player_thread for more info
+#     """
+#     global barrier
+#     global barrier_turn_start
+#     global barrier_turn_end
+#     global mutex
+#     global first
+#
+#     logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
+#
+#     # Barriers used for simulating turns
+#     if not first:
+#
+#
+#
+#     player_thread(tid, ret, player_type, iterations, chromosomes)
 
-    Wrapper that instantiates a GA agent called from ga_player.py
-
-    Args:
-        See: player_thread for more info
-    """
+def init_global_vars(args: Namespace):
     global barrier
     global barrier_turn_start
     global barrier_turn_end
     global mutex
-    global first
-
-    logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
-
-    # Barriers used for simulating turns
     barrier = Barrier(args.num_players)
     barrier_turn_start = Barrier(args.num_players)
     barrier_turn_end = Barrier(args.num_players)
     mutex = Lock()
-    first = True
 
-    player_thread(tid, ret, player_type, iterations, chromosomes)
+    logging.basicConfig(level=args.log, format="%(levelname)s %(threadName)s %(message)s")
 
+# def tmp_wrapper(args: Namespace, tid: int, ret: List[int], player_type: str, iterations: int, chromosomes: List[npt.NDArray[np.float32]] = None):
+#
+#     for idx in range(args.num_players):
+#         if idx == 0:
+#             t = Thread(target=player.main_ga_wrapper, args=(
+#             args, idx, tmp_ret, "ga", chromosome_array.shape[0], [chromosome for chromosome in chromosome_array]))
+#         else:
+#             t = Thread(target=player.main_ga_wrapper,
+#                        args=(args, idx, tmp_ret, "deterministic", chromosome_array.shape[0]))
+#         threads.append(t)
+#         t.start()
 
 # %% Main
 if __name__ == "__main__":

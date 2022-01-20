@@ -142,12 +142,14 @@ def fitness_function(args: Namespace, chromosome_array: npt.NDArray[npt.NDArray[
 
     time.sleep(1)  # Sadly, it's the only way to ensure that the server has started before instantiating the agents
 
+    player.init_global_vars(args)
+
     for idx in range(args.num_players):
         if idx == 0:
-            t = Thread(target=player.main_ga_wrapper, args=(
+            t = Thread(target=player.player_thread, args=(
             args, idx, tmp_ret, "ga", chromosome_array.shape[0], [chromosome for chromosome in chromosome_array]))
         else:
-            t = Thread(target=player.main_ga_wrapper,
+            t = Thread(target=player.player_thread,
                        args=(args, idx, tmp_ret, "deterministic", chromosome_array.shape[0]))
         threads.append(t)
         t.start()

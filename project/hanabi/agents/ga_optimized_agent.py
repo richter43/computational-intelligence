@@ -48,10 +48,10 @@ class GAAgent(Agent):
             hint_random = 0.5
             ret_hint = None
 
-            if hint_random < self.phenotype["random_hint"]:
+            if hint_random > self.phenotype["random_hint"]:
                 ret_hint = self.player_playable_card(data.players, data.tableCards)
 
-            if hint_random > self.phenotype["random_hint"] or ret_hint is None:
+            if hint_random < self.phenotype["random_hint"] or ret_hint is None:
                 ret_hint = utility.random_hint([server_player for server_player in data.players if server_player.name != self.name])
 
             player_name, hint_type, hint = ret_hint
@@ -60,7 +60,7 @@ class GAAgent(Agent):
 
             discard_random = 0.5
 
-            if discard_random <  self.phenotype["random_discard"]:
+            if discard_random >  self.phenotype["random_discard"]:
                 # Discard the card we know the least about
                 discard_card = utility.least_info_card(self.hand_possible_cards)
             else:

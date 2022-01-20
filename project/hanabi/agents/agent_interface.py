@@ -118,9 +118,6 @@ class Agent(object):
     def decide_action(self, data: gd.ServerGameStateData) -> str:
         """
         Method that should be implemented at every child class
-
-        Args:
-            data:
         """
         pass
 
@@ -206,6 +203,24 @@ class Agent(object):
                     if compare_value(card, hint_value):
                         self.list_given_hint[hinted_player][idx].add((hint_type, hint_value))
             break
+
+    def append_other_player_given_hint(self, data: gd.ServerHintData):
+        """
+        Append a hint that was given by another player
+        Args:
+            data: data packet that contains the hint
+        """
+        hinted_player = data.destination
+        hint_type = data.type
+        hint_value = data.value
+
+        for idx in data.positions:
+            self.list_given_hint[hinted_player][idx].add((hint_type, hint_value))
+
+    def remove_hint_after_play(self, player_name: str, idx: int):
+
+        del self.list_given_hint[player_name][idx]
+        self.list_given_hint[player_name].append(set())
 
     def player_playable_card(self, player_list: List[game.Player], table_state: Dict[str, List[int]]) -> Tuple[
         str, str, object]:
