@@ -55,7 +55,7 @@ Arguments for agent of type GA
 + On the other hand, a player can indeed negatively influence the game (Due to either ignorance or maliciousness) and ruin the match.
 + A ga_max_playability of between 0.6 and 0.8 was considered to be optimal.
 + random_discard seemingly had no effect on the final score.
-+ random_hint.
++ random_hint is preferred to be <0.5.
 
 ## Possible improvements
 
